@@ -4,6 +4,10 @@
     <header class="top-bar">
         <a class="brand" href="/">Doffin Case Management</a>
         <nav>
+            <!-- Plain JS (wwwroot/js/theme.js), not a Blazor event handler:
+                 this button must work on the static-SSR login page too,
+                 which has no interactive circuit to attach a C# handler to. -->
+            <button type="button" id="theme-toggle" class="theme-toggle" aria-pressed="false">Dark</button>
             <AuthorizeView>
                 <Authorized>
                     <span class="current-user">@context.User.Identity?.Name</span>

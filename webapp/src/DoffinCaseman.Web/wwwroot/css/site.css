@@ -10,11 +10,25 @@
  *                                                       darkened, same hue family)
  *   --color-surface-alt  #373f51 bg + #fff text -> 10.53:1
  *
- * Ratios computed via the WCAG relative-luminance formula; re-check any color
- * changes at https://webaim.org/resources/contrastchecker/ before shipping.
+ * Dark theme below is a SEPARATE palette computed against its own #14161c
+ * background, not an inversion of the light one -- inverting light-mode
+ * colors would not have re-guaranteed AAA contrast on a dark background.
+ * Ratios computed via the WCAG relative-luminance formula; re-check any
+ * color changes at https://webaim.org/resources/contrastchecker/ before
+ * shipping.
+ *
+ * The top bar (--color-brand/--color-brand-hover, always navy/white) is
+ * intentionally NOT theme-aware: navy-on-white already clears AAA
+ * regardless of the page theme, and keeping brand chrome constant across
+ * themes is a deliberate, common pattern (nav bar identity vs. content
+ * area). Generic buttons use their own --color-button-* variables instead,
+ * since a dark navy button has insufficient contrast against an
+ * already-dark page background (see dark block below).
  */
 
 :root {
+    color-scheme: light dark;
+
     --color-text: #373f51;
     --color-text-muted: #465067;
     --color-accent: #a3231e;
@@ -24,7 +38,66 @@
     --color-bg: #f5f5f5;
     --color-surface: #fff;
     --color-border: #c9ccd3;
+    --color-button-bg: #373f51;
+    --color-button-hover: #465067;
+    --color-button-text: #fff;
     --focus-ring: 3px solid var(--color-accent);
+
+    /* Status badges always use a light pastel background (see .status-badge
+       below) regardless of page theme, so their text color is fixed here
+       rather than swapped per-theme -- #1a1a2e clears 7:1 against every
+       badge pastel in both themes since it's darker than --color-text. */
+    --color-badge-text: #1a1a2e;
+}
+
+/*
+ * Dark palette, computed against background #14161c (relative luminance
+ * 0.00806):
+ *   --color-text        #cdd3e0 on #14161c -> 12.05:1
+ *   --color-text-muted   #9aa3b8 on #14161c ->  7.15:1
+ *   --color-accent       #ff8177 on #14161c ->  7.46:1  (lighter than the
+ *                                                        light-mode accent;
+ *                                                        a dark red would
+ *                                                        fail on a dark bg)
+ *   --color-button-bg    #aab4c8 -> 8.67:1 against page bg (visibility) and
+ *                                   8.76:1 with --color-button-text on top
+ *                                   (AAA text) -- a LIGHT button, not a
+ *                                   dark one: a dark-navy button here would
+ *                                   only hit ~2.4:1 against the page and
+ *                                   fail the 3:1 non-text minimum.
+ */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --color-text: #cdd3e0;
+        --color-text-muted: #9aa3b8;
+        --color-accent: #ff8177;
+        --color-accent-hover: #ffa39a;
+        --color-bg: #14161c;
+        --color-surface: #1f232c;
+        --color-border: #343a46;
+        --color-button-bg: #aab4c8;
+        --color-button-hover: #c3cbdb;
+        --color-button-text: #14161c;
+    }
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --color-text: #cdd3e0;
+    --color-text-muted: #9aa3b8;
+    --color-accent: #ff8177;
+    --color-accent-hover: #ffa39a;
+    --color-bg: #14161c;
+    --color-surface: #1f232c;
+    --color-border: #343a46;
+    --color-button-bg: #aab4c8;
+    --color-button-hover: #c3cbdb;
+    --color-button-text: #14161c;
+}
+
+:root[data-theme="light"] {
+    color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -83,16 +156,16 @@ button, input, select, textarea {
 }
 
 button {
-    background: var(--color-brand);
-    color: #fff;
-    border-color: var(--color-brand);
+    background: var(--color-button-bg);
+    color: var(--color-button-text);
+    border-color: var(--color-button-bg);
     cursor: pointer;
     padding-inline: 1rem;
 }
 
 button:hover {
-    background: var(--color-brand-hover);
-    border-color: var(--color-brand-hover);
+    background: var(--color-button-hover);
+    border-color: var(--color-button-hover);
 }
 
 button:disabled {
@@ -127,6 +200,26 @@ button:disabled {
 
 .top-bar .current-user {
     color: #fff;
+}
+
+/* Distinct from the generic `button` style: this button lives ON the navy
+   top bar (which stays navy regardless of theme, see the file header
+   comment), so it needs its own always-navy-bar-appropriate styling
+   rather than --color-button-bg, which is theme-aware and would clash
+   with (or in dark mode, barely stand out against) the bar's fixed navy
+   background. White outline/text on navy = 10.53:1, same pairing as the
+   rest of the top bar, unaffected by page theme. */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid #fff;
+    color: #fff;
+    min-height: 44px;
+    padding: 0.4rem 0.75rem;
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #fff;
 }
 
 /* Underlined (not color-only) so the affordance survives grayscale/high
@@ -177,10 +270,11 @@ button:disabled {
 
 /*
  * Status badges: every background is light enough (relative luminance well
- * above 0.6) that --color-text (#373f51, 10.53:1 on white) stays >= 7:1 on
- * top of it, so the same dark text color is reused everywhere rather than
- * per-badge foreground colors. Color is never the only signal -- each badge
- * also renders its status as text (see StatusBadge.razor).
+ * above 0.6) that --color-badge-text (#1a1a2e, fixed regardless of page
+ * theme -- see :root above) stays >= 7:1 on top of it, so the same dark
+ * text color is reused everywhere rather than per-badge foreground colors.
+ * Color is never the only signal -- each badge also renders its status as
+ * text (see StatusBadge.razor).
  */
 .status-badge {
     display: inline-block;
@@ -188,7 +282,7 @@ button:disabled {
     border-radius: 999px;
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--color-text);
+    color: var(--color-badge-text);
     background: #e5e7eb;
     border: 1px solid rgba(55, 63, 81, 0.25);
 }
