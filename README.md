@@ -1,5 +1,8 @@
 # Doffin Case Management
 
+> [!CAUTION]
+> This repository is entirely generated using Claude Code.
+
 Tracks public procurement notices from [doffin.no](https://doffin.no) relevant
 to the business and manages the internal workflow of deciding whether/how to
 bid on them.
