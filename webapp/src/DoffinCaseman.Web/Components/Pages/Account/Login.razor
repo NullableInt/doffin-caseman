@@ -1,0 +1,64 @@
+@page "/login"
+@layout DoffinCaseman.Web.Components.Layout.MainLayout
+@using Microsoft.AspNetCore.Identity
+@using DoffinCaseman.Web.Data.Entities
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager Navigation
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
+<PageTitle>Log in</PageTitle>
+
+<h1>Log in</h1>
+
+@if (errorMessage is not null)
+{
+    <p class="error">@errorMessage</p>
+}
+
+<EditForm Model="Input" FormName="login" OnValidSubmit="LoginAsync" method="post">
+    <DataAnnotationsValidator />
+    <div class="field">
+        <label for="username">Username</label>
+        <InputText id="username" @bind-Value="Input.UserName" />
+    </div>
+    <div class="field">
+        <label for="password">Password</label>
+        <InputText id="password" type="password" @bind-Value="Input.Password" />
+    </div>
+    <button type="submit">Log in</button>
+</EditForm>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginInput Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? errorMessage;
+
+    private async Task LoginAsync()
+    {
+        var result = await SignInManager.PasswordSignInAsync(
+            Input.UserName, Input.Password, isPersistent: true, lockoutOnFailure: true);
+
+        if (result.Succeeded)
+        {
+            Navigation.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true);
+            return;
+        }
+
+        errorMessage = result.IsLockedOut
+            ? "This account is locked out. Try again later."
+            : "Invalid username or password.";
+    }
+
+    private class LoginInput
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string UserName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Password { get; set; } = "";
+    }
+}

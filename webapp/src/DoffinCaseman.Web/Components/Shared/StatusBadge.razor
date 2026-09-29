@@ -1,0 +1,20 @@
+<span class="status-badge status-@CssClass">@Label</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public CaseStatus Status { get; set; }
+
+    private string Label => Status switch
+    {
+        CaseStatus.New => "New",
+        CaseStatus.UnderReview => "Under review",
+        CaseStatus.Bidding => "Bidding",
+        CaseStatus.Submitted => "Submitted",
+        CaseStatus.Won => "Won",
+        CaseStatus.Lost => "Lost",
+        CaseStatus.Archived => "Archived",
+        _ => Status.ToString(),
+    };
+
+    private string CssClass => Status.ToString().ToLowerInvariant();
+}

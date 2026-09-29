@@ -1,0 +1,100 @@
+@page "/"
+@rendermode InteractiveServer
+@using DoffinCaseman.Web.Data.Entities
+@using DoffinCaseman.Web.Services
+@inject NoticeService NoticeService
+@inject CaseService CaseService
+@inject NavigationManager Navigation
+
+<PageTitle>Notices</PageTitle>
+
+<h1>Procurement notices</h1>
+
+<div class="filter-bar">
+    <input placeholder="Search title..." @bind="searchText" @bind:event="oninput" @onkeyup="ApplyFiltersOnEnter" />
+    <input placeholder="CPV code" @bind="cpvCode" @bind:event="oninput" />
+    <input placeholder="Region" @bind="region" @bind:event="oninput" />
+    <button @onclick="ApplyFilters">Filter</button>
+</div>
+
+@if (notices is null)
+{
+    <p>Loading...</p>
+}
+else if (notices.Count == 0)
+{
+    <p>No notices match the current filters.</p>
+}
+else
+{
+    <table class="notice-table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Buyer</th>
+                <th>Published</th>
+                <th>Deadline</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var notice in notices)
+            {
+                <tr>
+                    <td>@notice.Title</td>
+                    <td>@notice.BuyerName</td>
+                    <td>@notice.PublishedDate?.ToLocalTime().ToString("d")</td>
+                    <td>@notice.Deadline?.ToLocalTime().ToString("d")</td>
+                    <td>
+                        @if (notice.Case is not null)
+                        {
+                            <StatusBadge Status="notice.Case.Status" />
+                        }
+                    </td>
+                    <td>
+                        <button @onclick="() => HandleAsync(notice.NoticeId)">
+                            @(notice.Case is null ? "Handle" : "Open case")
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Notice>? notices;
+    private string searchText = "";
+    private string cpvCode = "";
+    private string region = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var filter = new NoticeFilter(
+            CpvCode: string.IsNullOrWhiteSpace(cpvCode) ? null : cpvCode,
+            Region: string.IsNullOrWhiteSpace(region) ? null : region,
+            SearchText: string.IsNullOrWhiteSpace(searchText) ? null : searchText);
+
+        notices = await NoticeService.SearchAsync(filter);
+    }
+
+    private async Task ApplyFilters() => await LoadAsync();
+
+    private async Task ApplyFiltersOnEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadAsync();
+    }
+
+    private async Task HandleAsync(string noticeId)
+    {
+        var @case = await CaseService.GetOrCreateForNoticeAsync(noticeId);
+        Navigation.NavigateTo($"/cases/{@case.Id}");
+    }
+}

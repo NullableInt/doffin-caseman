@@ -1,0 +1,22 @@
+@inherits LayoutComponentBase
+@inject Microsoft.AspNetCore.Components.AuthenticationStateProvider AuthStateProvider
+
+<div class="page">
+    <header class="top-bar">
+        <a class="brand" href="/">Doffin Case Management</a>
+        <nav>
+            <AuthorizeView>
+                <Authorized>
+                    <span class="current-user">@context.User.Identity?.Name</span>
+                    <form method="post" action="/logout">
+                        <button type="submit" class="link-button">Log out</button>
+                    </form>
+                </Authorized>
+            </AuthorizeView>
+        </nav>
+    </header>
+
+    <main class="content">
+        @Body
+    </main>
+</div>

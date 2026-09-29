@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: doffin
+      POSTGRES_USER: doffin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doffin"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: migrate/migrate:v4.17.1
+    volumes:
+      - ./db/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://doffin:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/doffin?sslmode=disable"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  crawler:
+    build: ./crawler
+    environment:
+      DATABASE_URL: postgres://doffin:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/doffin?sslmode=disable
+      DOFFIN_API_SUBSCRIPTION_KEY: ${DOFFIN_API_SUBSCRIPTION_KEY:?set DOFFIN_API_SUBSCRIPTION_KEY in .env}
+      DOFFIN_API_BASE_URL: ${DOFFIN_API_BASE_URL:-https://dof-notices-prod-api.developer.azure-api.net}
+      DOFFIN_CPV_CODES: ${DOFFIN_CPV_CODES:-}
+      DOFFIN_REGIONS: ${DOFFIN_REGIONS:-}
+      DOFFIN_PAGE_SIZE: ${DOFFIN_PAGE_SIZE:-100}
+      CRAWL_SCHEDULE_CRON: ${CRAWL_SCHEDULE_CRON:-0 3 * * *}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: src/DoffinCaseman.Web/Dockerfile
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=doffin;Username=doffin;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  pgdata:

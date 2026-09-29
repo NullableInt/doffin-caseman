@@ -1,0 +1,48 @@
+#!/bin/sh
+# Blocks commits that would leak secrets into this (public) repo:
+#   1. any file literally named .env, even if force-added
+#   2. staged lines that assign a non-empty value to a known secret-shaped
+#      env var name (DOFFIN_API_SUBSCRIPTION_KEY, POSTGRES_PASSWORD, etc.)
+#
+# Installed via: git config core.hooksPath .githooks
+# Bypass (only if you're sure): git commit --no-verify
+
+set -e
+
+fail=0
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+
+for f in $staged_files; do
+    base=$(basename "$f")
+    if [ "$base" = ".env" ]; then
+        echo "pre-commit: refusing to commit '$f' -- .env must never be committed (see .gitignore)." >&2
+        fail=1
+    fi
+done
+
+# Look for "SOMETHING_KEY=value", "SOMETHING_PASSWORD=value", "SOMETHING_SECRET=value",
+# "SOMETHING_TOKEN=value" etc. with a non-empty, non-placeholder value in added lines.
+#
+# Scoped to config-shaped files only (env/yaml/json/sql/...), not source code
+# (.go/.cs/.razor/...): source legitimately references these names as string
+# literals/identifiers (e.g. os.Getenv("DOFFIN_API_SUBSCRIPTION_KEY")) without
+# ever assigning a real value, which made this noisy when scanned everywhere.
+config_files=$(printf '%s\n' $staged_files | grep -E '(^|/)\.env(\..+)?$|\.(ya?ml|json|sql|toml|ini|conf|txt|md)$' || true)
+
+secret_pattern='^\+[^+].*(KEY|PASSWORD|SECRET|TOKEN|SUBSCRIPTION)[A-Z0-9_]*[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9/+_.-]{12,}'
+placeholder_pattern='(changeme|change_me|your[_-]?key|example|placeholder|xxx|<.*>|\$\{)'
+
+matches=""
+if [ -n "$config_files" ]; then
+    matches=$(git diff --cached -U0 -- $config_files 2>/dev/null | grep -inE "$secret_pattern" | grep -ivE "$placeholder_pattern" || true)
+fi
+
+if [ -n "$matches" ]; then
+    echo "pre-commit: a staged line looks like it assigns a real secret value:" >&2
+    echo "$matches" >&2
+    echo "If this is a false positive, commit with --no-verify." >&2
+    fail=1
+fi
+
+exit $fail

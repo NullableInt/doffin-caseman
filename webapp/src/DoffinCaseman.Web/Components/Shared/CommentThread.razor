@@ -1,0 +1,38 @@
+@using DoffinCaseman.Web.Data.Entities
+
+<div class="comment-thread">
+    @foreach (var comment in Comments.OrderBy(c => c.CreatedAt))
+    {
+        <div class="comment">
+            <div class="comment-meta">
+                <strong>@comment.User.DisplayName</strong>
+                <span class="comment-time">@comment.CreatedAt.ToLocalTime().ToString("g")</span>
+            </div>
+            <div class="comment-body">@comment.Body</div>
+        </div>
+    }
+
+    <EditForm Model="this" OnValidSubmit="SubmitAsync">
+        <textarea @bind="newCommentBody" placeholder="Add a comment..." rows="3"></textarea>
+        <button type="submit" disabled="@string.IsNullOrWhiteSpace(newCommentBody)">Comment</button>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public List<CaseComment> Comments { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnAddComment { get; set; }
+
+    private string newCommentBody = "";
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newCommentBody))
+            return;
+
+        await OnAddComment.InvokeAsync(newCommentBody);
+        newCommentBody = "";
+    }
+}

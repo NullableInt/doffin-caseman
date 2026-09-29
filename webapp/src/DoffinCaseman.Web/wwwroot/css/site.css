@@ -1,0 +1,278 @@
+/*
+ * Theme derived from interlope-consulting.no's brand palette (navy #373f51,
+ * accent red #e9322d, on white/#f5f5f5 surfaces), adjusted to meet WCAG 2.2
+ * Level AAA contrast (7:1 normal text, 4.5:1 large text/UI):
+ *
+ *   --color-text        #373f51 on #fff  -> 10.53:1
+ *   --color-text-muted   #465067 on #fff  ->  8.06:1
+ *   --color-accent       #a3231e on #fff  ->  7.45:1  (site's #e9322d is only
+ *                                                       4.24:1 - fails even AA -
+ *                                                       darkened, same hue family)
+ *   --color-surface-alt  #373f51 bg + #fff text -> 10.53:1
+ *
+ * Ratios computed via the WCAG relative-luminance formula; re-check any color
+ * changes at https://webaim.org/resources/contrastchecker/ before shipping.
+ */
+
+:root {
+    --color-text: #373f51;
+    --color-text-muted: #465067;
+    --color-accent: #a3231e;
+    --color-accent-hover: #7f1b17;
+    --color-brand: #373f51;
+    --color-brand-hover: #465067;
+    --color-bg: #f5f5f5;
+    --color-surface: #fff;
+    --color-border: #c9ccd3;
+    --focus-ring: 3px solid var(--color-accent);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: "Noto Sans", "Segoe UI", Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    color: var(--color-text);
+    background: var(--color-bg);
+}
+
+h1, h2, h3 {
+    font-family: "Roboto Slab", Georgia, "Times New Roman", serif;
+    color: var(--color-text);
+    line-height: 1.3;
+}
+
+p, li {
+    max-width: 70ch;
+}
+
+/* Visible on every interactive element, including ones with no browser
+   default outline (custom buttons); meets 3:1 non-text contrast against
+   both #fff and #f5f5f5 surfaces. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+a:hover {
+    color: var(--color-accent-hover);
+}
+
+/* Buttons, inputs and selects keep a 44x44px minimum target size
+   (WCAG 2.5.5, Target Size - Enhanced, AAA) and enough gap between
+   adjacent controls to avoid accidental mis-taps. */
+button, input, select, textarea {
+    font: inherit;
+    min-height: 44px;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+button {
+    background: var(--color-brand);
+    color: #fff;
+    border-color: var(--color-brand);
+    cursor: pointer;
+    padding-inline: 1rem;
+}
+
+button:hover {
+    background: var(--color-brand-hover);
+    border-color: var(--color-brand-hover);
+}
+
+button:disabled {
+    background: var(--color-border);
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--color-brand);
+    color: #fff;
+}
+
+.top-bar .brand {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.top-bar nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.top-bar .current-user {
+    color: #fff;
+}
+
+/* Underlined (not color-only) so the affordance survives grayscale/high
+   contrast modes, per WCAG 1.4.1 Use of Color. */
+.link-button {
+    background: none;
+    border: none;
+    min-height: 44px;
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    padding: 0.5rem 0;
+}
+
+.link-button:hover {
+    color: #e8eaf0;
+}
+
+.content {
+    padding: 1.5rem;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.notice-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.notice-table th, .notice-table td {
+    text-align: left;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.notice-table th {
+    color: var(--color-text);
+    font-weight: 700;
+}
+
+/*
+ * Status badges: every background is light enough (relative luminance well
+ * above 0.6) that --color-text (#373f51, 10.53:1 on white) stays >= 7:1 on
+ * top of it, so the same dark text color is reused everywhere rather than
+ * per-badge foreground colors. Color is never the only signal -- each badge
+ * also renders its status as text (see StatusBadge.razor).
+ */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+    background: #e5e7eb;
+    border: 1px solid rgba(55, 63, 81, 0.25);
+}
+
+.status-badge.status-new { background: #dbe4fe; }
+.status-badge.status-underreview { background: #fdedc0; }
+.status-badge.status-bidding { background: #fde39c; }
+.status-badge.status-submitted { background: #d6dcfb; }
+.status-badge.status-won { background: #b6f0cd; }
+.status-badge.status-lost { background: #fbd0d0; }
+.status-badge.status-archived { background: #e5e7eb; }
+
+.case-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin: 1.25rem 0;
+}
+
+.case-controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-weight: 600;
+}
+
+.notice-meta {
+    color: var(--color-text-muted);
+}
+
+.status-history {
+    padding-left: 1.25rem;
+}
+
+.status-history li {
+    margin-bottom: 0.5rem;
+}
+
+.comment-thread {
+    max-width: 70ch;
+}
+
+.comment {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+}
+
+.comment-meta {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.comment-body {
+    white-space: pre-wrap;
+}
+
+.comment-thread textarea {
+    width: 100%;
+    display: block;
+    margin-bottom: 0.5rem;
+    min-height: 5.5rem;
+}
+
+.error {
+    color: var(--color-accent);
+    font-weight: 600;
+}
+
+.field {
+    margin-bottom: 1rem;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+
+.field input {
+    width: 100%;
+}

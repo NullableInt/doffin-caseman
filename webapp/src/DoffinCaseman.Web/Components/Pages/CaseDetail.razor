@@ -1,0 +1,102 @@
+@page "/cases/{CaseId:long}"
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using DoffinCaseman.Web.Data.Entities
+@using DoffinCaseman.Web.Services
+@inject CaseService CaseService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Case</PageTitle>
+
+@if (currentCase is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <h1>@currentCase.Notice.Title</h1>
+    <p class="notice-meta">
+        @currentCase.Notice.BuyerName &middot;
+        Published @currentCase.Notice.PublishedDate?.ToLocalTime().ToString("d") &middot;
+        Deadline @currentCase.Notice.Deadline?.ToLocalTime().ToString("d")
+    </p>
+    <p>@currentCase.Notice.Description</p>
+
+    <div class="case-controls">
+        <label>
+            Status
+            <select value="@currentCase.Status" @onchange="OnStatusChangedAsync">
+                @foreach (var status in Enum.GetValues<CaseStatus>())
+                {
+                    <option value="@status">@status</option>
+                }
+            </select>
+        </label>
+
+        <label>
+            Assignee
+            <AssigneePicker AssigneeId="currentCase.AssigneeId" Users="assignableUsers" AssigneeIdChanged="OnAssigneeChangedAsync" />
+        </label>
+    </div>
+
+    <h2>Status history</h2>
+    <ul class="status-history">
+        @foreach (var h in currentCase.StatusHistory.OrderByDescending(h => h.ChangedAt))
+        {
+            <li>
+                @h.ChangedAt.ToLocalTime().ToString("g") &mdash;
+                @(h.OldStatus is null ? "created as" : $"{h.OldStatus} →") @h.NewStatus
+                by @(h.ChangedByUser?.DisplayName ?? "unknown")
+            </li>
+        }
+    </ul>
+
+    <h2>Comments</h2>
+    <CommentThread Comments="currentCase.Comments" OnAddComment="AddCommentAsync" />
+}
+
+@code {
+    [Parameter]
+    public long CaseId { get; set; }
+
+    private Case? currentCase;
+    private List<ApplicationUser> assignableUsers = [];
+    private Guid currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var idClaim = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        currentUserId = idClaim is not null ? Guid.Parse(idClaim) : Guid.Empty;
+
+        assignableUsers = await CaseService.GetAssignableUsersAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        currentCase = await CaseService.GetByIdAsync(CaseId);
+    }
+
+    private async Task OnStatusChangedAsync(ChangeEventArgs e)
+    {
+        if (currentCase is null || e.Value is not string value) return;
+        var newStatus = Enum.Parse<CaseStatus>(value);
+        await CaseService.ChangeStatusAsync(currentCase.Id, newStatus, currentUserId);
+        await LoadAsync();
+    }
+
+    private async Task OnAssigneeChangedAsync(Guid? assigneeId)
+    {
+        if (currentCase is null) return;
+        await CaseService.AssignAsync(currentCase.Id, assigneeId);
+        await LoadAsync();
+    }
+
+    private async Task AddCommentAsync(string body)
+    {
+        if (currentCase is null) return;
+        await CaseService.AddCommentAsync(currentCase.Id, currentUserId, body);
+        await LoadAsync();
+    }
+}

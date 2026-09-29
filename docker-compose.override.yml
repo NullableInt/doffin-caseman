@@ -1,0 +1,14 @@
+# Local development overrides: hot-reload bind mounts and a host-exposed
+# Postgres port for `psql`/GUI clients. Applied automatically alongside
+# docker-compose.yml when you just run `docker compose up`.
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: src/DoffinCaseman.Web/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development

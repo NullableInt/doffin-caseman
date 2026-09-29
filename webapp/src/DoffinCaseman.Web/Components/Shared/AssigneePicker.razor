@@ -1,0 +1,28 @@
+@using DoffinCaseman.Web.Data.Entities
+
+<select value="@(AssigneeId?.ToString() ?? "")" @onchange="OnChanged">
+    <option value="">Unassigned</option>
+    @foreach (var user in Users)
+    {
+        <option value="@user.Id">@user.DisplayName</option>
+    }
+</select>
+
+@code {
+    [Parameter]
+    public Guid? AssigneeId { get; set; }
+
+    [Parameter]
+    public List<ApplicationUser> Users { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<Guid?> AssigneeIdChanged { get; set; }
+
+    private async Task OnChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        var newId = string.IsNullOrEmpty(value) ? (Guid?)null : Guid.Parse(value);
+        AssigneeId = newId;
+        await AssigneeIdChanged.InvokeAsync(newId);
+    }
+}
