@@ -1,0 +1,15 @@
+# Secrets
+.env
+
+# Go
+crawler/crawler
+/dist/
+
+# .NET
+webapp/**/bin/
+webapp/**/obj/
+webapp/**/*.user
+
+# OS/editor
+.DS_Store
+*.swp
