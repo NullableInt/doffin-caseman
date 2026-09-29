@@ -3,22 +3,6 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <!-- Applied before the stylesheet loads so a stored theme choice never
-         flashes the wrong theme on first paint. Reads localStorage only --
-         no cookies/server round-trip needed, and it's a no-op (falls back
-         to the @media (prefers-color-scheme) rules in site.css) when
-         nothing is stored yet or storage is unavailable (private browsing
-         etc. can throw). -->
-    <script>
-      (function () {
-        try {
-          var stored = localStorage.getItem('theme');
-          if (stored === 'light' || stored === 'dark') {
-            document.documentElement.setAttribute('data-theme', stored);
-          }
-        } catch (e) { /* localStorage unavailable; system preference still applies */ }
-      })();
-    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Doffin Case Management</title>
     <base href="/" />

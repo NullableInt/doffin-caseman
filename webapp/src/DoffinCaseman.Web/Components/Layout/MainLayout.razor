@@ -4,10 +4,32 @@
     <header class="top-bar">
         <a class="brand" href="/">Doffin Case Management</a>
         <nav>
-            <!-- Plain JS (wwwroot/js/theme.js), not a Blazor event handler:
-                 this button must work on the static-SSR login page too,
-                 which has no interactive circuit to attach a C# handler to. -->
-            <button type="button" id="theme-toggle" class="theme-toggle" aria-pressed="false">Dark</button>
+            <!-- Theme switching itself is pure CSS (:has() in site.css reacts
+                 directly to which radio is checked -- see the file header
+                 comment there). Native radio inputs, not a Blazor component:
+                 this must work on the static-SSR login page too, which has
+                 no interactive circuit for a C# handler, and the browser
+                 already gives click/keyboard/label-association handling for
+                 free. The only thing JS still does here is the one thing
+                 CSS structurally cannot: persist the choice across page
+                 loads (wwwroot/js/theme.js) and restore it before first
+                 paint (inline script just below, since these radios don't
+                 exist yet when App.razor's <head> parses). -->
+            <fieldset class="theme-picker">
+                <legend class="visually-hidden">Theme</legend>
+                <label><input type="radio" name="theme" id="theme-auto" value="auto" checked /> Auto</label>
+                <label><input type="radio" name="theme" id="theme-light" value="light" /> Light</label>
+                <label><input type="radio" name="theme" id="theme-dark" value="dark" /> Dark</label>
+            </fieldset>
+            <script>
+              (function () {
+                try {
+                  var stored = localStorage.getItem('theme');
+                  var id = stored === 'light' ? 'theme-light' : stored === 'dark' ? 'theme-dark' : 'theme-auto';
+                  document.getElementById(id).checked = true;
+                } catch (e) { /* localStorage unavailable; Auto (the default) still applies */ }
+              })();
+            </script>
             <AuthorizeView>
                 <Authorized>
                     <span class="current-user">@context.User.Identity?.Name</span>

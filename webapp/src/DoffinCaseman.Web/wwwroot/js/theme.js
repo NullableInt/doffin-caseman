@@ -1,51 +1,42 @@
-// Dark mode toggle. Plain JS, not a Blazor component, because the toggle
-// lives in MainLayout which wraps the static-SSR login page (no
-// interactive circuit there to attach a C# click handler to) as well as
-// the InteractiveServer pages. Click handling uses event delegation on
-// document rather than binding to the button directly, since Blazor's
-// enhanced navigation can replace the button element between page loads
-// without a full script reload.
+// Theme switching itself is pure CSS (:has() in site.css, reacting to the
+// Auto/Light/Dark radios in MainLayout.razor). JS is only responsible for
+// what CSS structurally cannot do: persisting the choice across page loads.
+//
+// The initial-load restore (before first paint) is a separate inline
+// script right after the radios in MainLayout.razor -- this file only
+// handles re-syncing after Blazor's enhanced navigation swaps in fresh,
+// unrestored radios, and saving a new choice when the user picks one.
 
 (function () {
-    function systemPrefersDark() {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-
-    function currentTheme() {
-        var explicit = document.documentElement.getAttribute('data-theme');
-        if (explicit === 'light' || explicit === 'dark') return explicit;
-        return systemPrefersDark() ? 'dark' : 'light';
-    }
-
-    function updateToggleLabel() {
-        var btn = document.getElementById('theme-toggle');
-        if (!btn) return;
-        var isDark = currentTheme() === 'dark';
-        // Label names the action (what clicking switches TO), not the
-        // current state, matching common toggle-button convention.
-        btn.textContent = isDark ? 'Light' : 'Dark';
-        btn.setAttribute('aria-pressed', String(isDark));
-    }
-
-    function toggleTheme() {
-        var next = currentTheme() === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
+    function restore() {
+        var stored;
         try {
-            localStorage.setItem('theme', next);
-        } catch (e) { /* storage unavailable; theme still applies for this load */ }
-        updateToggleLabel();
+            stored = localStorage.getItem('theme');
+        } catch (e) {
+            return;
+        }
+        var id = stored === 'light' ? 'theme-light' : stored === 'dark' ? 'theme-dark' : 'theme-auto';
+        var el = document.getElementById(id);
+        if (el) el.checked = true;
     }
 
-    document.addEventListener('click', function (event) {
-        if (event.target.closest('#theme-toggle')) {
-            toggleTheme();
-        }
+    document.addEventListener('change', function (event) {
+        if (event.target.name !== 'theme') return;
+        try {
+            // 'auto' isn't stored as a string value -- its absence IS the
+            // auto state, same convention the inline restore script and
+            // App.razor's pre-paint script (data-theme removed; theme.js
+            // now owns storage) both read.
+            var value = event.target.value === 'auto' ? '' : event.target.value;
+            if (value) {
+                localStorage.setItem('theme', value);
+            } else {
+                localStorage.removeItem('theme');
+            }
+        } catch (e) { /* storage unavailable; choice still applies for this load */ }
     });
 
-    document.addEventListener('DOMContentLoaded', updateToggleLabel);
-    // Re-sync after Blazor's enhanced navigation swaps in fresh server-
-    // rendered markup (a new button with the default label/aria-pressed).
     if (window.Blazor && typeof window.Blazor.addEventListener === 'function') {
-        window.Blazor.addEventListener('enhancedload', updateToggleLabel);
+        window.Blazor.addEventListener('enhancedload', restore);
     }
 })();
