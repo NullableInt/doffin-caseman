@@ -15,30 +15,43 @@
     <p class="error">@errorMessage</p>
 }
 
+@* Input is guaranteed non-null by render time (set in OnInitialized before
+   the framework renders this markup); the ! here just satisfies nullable
+   analysis, which can't see across the component lifecycle. *@
 <EditForm Model="Input" FormName="login" OnValidSubmit="LoginAsync" method="post">
     <DataAnnotationsValidator />
     <div class="field">
         <label for="username">Username</label>
-        <InputText id="username" @bind-Value="Input.UserName" />
+        <InputText id="username" @bind-Value="Input!.UserName" />
     </div>
     <div class="field">
         <label for="password">Password</label>
-        <InputText id="password" type="password" @bind-Value="Input.Password" />
+        <InputText id="password" type="password" @bind-Value="Input!.Password" />
     </div>
     <button type="submit">Log in</button>
 </EditForm>
 
 @code {
+    // Not initialized inline: [SupplyParameterFromForm] can hand back null on
+    // a POST (BL0008), so OnInitialized guards against that instead of
+    // relying on a property initializer that a form post can silently
+    // bypass.
     [SupplyParameterFromForm]
-    private LoginInput Input { get; set; } = new();
+    private LoginInput? Input { get; set; }
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
     private string? errorMessage;
 
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+    }
+
     private async Task LoginAsync()
     {
+        Input ??= new();
         var result = await SignInManager.PasswordSignInAsync(
             Input.UserName, Input.Password, isPersistent: true, lockoutOnFailure: true);
 

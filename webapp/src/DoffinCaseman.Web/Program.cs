@@ -13,14 +13,19 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 
 // case_status must be mapped as a native Postgres enum here (not a plain
 // connection string passed to UseNpgsql) -- otherwise Npgsql sends
-// CaseStatus values as text and Postgres rejects the implicit cast. See
-// CaseStatus.cs for why.
+// CaseStatus values as its underlying int and Postgres rejects the cast.
+// Confirmed live: under EF 9+/Npgsql 10, MapEnum must be called BOTH on the
+// data source builder AND inside the UseNpgsql options lambda -- the data
+// source builder call alone (sufficient pre-EF9) silently stops being
+// enough and there's no compile-time signal that it's missing. See
+// CaseStatus.cs for the [PgName] mapping and
+// https://www.npgsql.org/efcore/mapping/enum.html.
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
 dataSourceBuilder.MapEnum<CaseStatus>("case_status");
 var dataSource = dataSourceBuilder.Build();
 
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    options.UseNpgsql(dataSource));
+    options.UseNpgsql(dataSource, o => o.MapEnum<CaseStatus>("case_status")));
 
 // Cookie-based auth only -- no external logins, no self-service registration
 // (this is an internal staff tool; users are seeded directly, see

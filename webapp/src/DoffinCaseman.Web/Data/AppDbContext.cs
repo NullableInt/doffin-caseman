@@ -28,6 +28,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     {
         base.OnModelCreating(modelBuilder);
 
+        // case_status enum mapping lives entirely in Program.cs /
+        // PostgresFixture.cs (NpgsqlDataSourceBuilder.MapEnum + a matching
+        // MapEnum inside the UseNpgsql options lambda) -- HasPostgresEnum()
+        // here is unnecessary under EF 9+ and was actively wrong: adding it
+        // did NOT fix a real "sent as int" bug, which turned out to be a
+        // missing MapEnum call in the UseNpgsql lambda instead.
+
         modelBuilder.Entity<ApplicationUser>(e =>
         {
             e.ToTable("asp_net_users");

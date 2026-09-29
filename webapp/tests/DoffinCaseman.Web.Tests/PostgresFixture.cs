@@ -14,8 +14,7 @@ namespace DoffinCaseman.Web.Tests;
 // EF Core "ensure created" approximation of it.
 public class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer container = new PostgreSqlBuilder()
-        .WithImage("docker.io/library/postgres:16-alpine")
+    private readonly PostgreSqlContainer container = new PostgreSqlBuilder("docker.io/library/postgres:16-alpine")
         .WithDatabase("doffin_test")
         .WithUsername("doffin")
         .WithPassword("doffin")
@@ -38,7 +37,7 @@ public class PostgresFixture : IAsyncLifetime
         var dataSource = dataSourceBuilder.Build();
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(dataSource)
+            .UseNpgsql(dataSource, o => o.MapEnum<CaseStatus>("case_status"))
             .Options;
         DbContextFactory = new PooledDbContextFactory<AppDbContext>(options);
     }

@@ -10,7 +10,7 @@ Three components, run together via Docker Compose:
   codes / regions from the Doffin Public API, stores them in Postgres.
 - **`db/migrations/`** (plain SQL, applied via `golang-migrate`) -- the single
   source of truth for the schema; neither app owns migrations.
-- **`webapp/`** (.NET 8, ASP.NET Core Blazor Server) -- where staff view
+- **`webapp/`** (.NET 10, ASP.NET Core Blazor Server) -- where staff view
   notices, work cases through a status pipeline, assign them, and comment.
 
 See `/home/moira/.claude/plans/we-are-building-a-pure-rossum.md` for the full
@@ -32,10 +32,10 @@ assumed about the Doffin API.
 - A Doffin Public API subscription key: sign up at
   https://dof-notices-prod-api.developer.azure-api.net/ (actual API calls go
   to `api.doffin.no`, a different host -- see `docs/doffin-api-notes.md`).
-- For local (non-container) development: Go 1.23+, .NET 8 SDK (verified
-  working via `brew install dotnet@8`, which is keg-only -- add
-  `export DOTNET_ROOT="$(brew --prefix dotnet@8)/libexec"` and
-  `export PATH="$(brew --prefix dotnet@8)/bin:$PATH"` to your shell profile)
+- For local (non-container) development: Go 1.23+, .NET 10 SDK (verified
+  working via `brew install dotnet`, which is keg-only -- add
+  `export DOTNET_ROOT="$(brew --prefix dotnet)/libexec"` and
+  `export PATH="$(brew --prefix dotnet)/bin:$PATH"` to your shell profile)
 
 ## Secrets
 
