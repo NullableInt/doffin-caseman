@@ -19,9 +19,19 @@ assumed about the Doffin API.
 
 ## Prerequisites
 
-- Docker (or Podman) with Compose support
+- Docker, or **Podman** (verified working setup: `podman` + `podman-compose`,
+  installed via `brew install podman-compose`; `podman compose ...` then
+  works as a thin wrapper). All image references in this repo are
+  fully-qualified (`docker.io/library/postgres:...`, not bare
+  `postgres:...`) because Podman's short-name resolution refuses to guess a
+  registry outside a TTY and hangs/fails otherwise -- keep new image refs
+  fully-qualified too.
+- On SELinux-enforcing hosts (Fedora/Bazzite default), bind-mounted volumes
+  need a `:Z` relabel suffix, already applied where needed in
+  `docker-compose.yml`.
 - A Doffin Public API subscription key: sign up at
-  https://dof-notices-prod-api.developer.azure-api.net/
+  https://dof-notices-prod-api.developer.azure-api.net/ (actual API calls go
+  to `api.doffin.no`, a different host -- see `docs/doffin-api-notes.md`).
 - For local (non-container) development: Go 1.23+, .NET 8 SDK
 
 ## Secrets
@@ -52,7 +62,7 @@ cp .env.example .env
 # edit .env: set POSTGRES_PASSWORD, DOFFIN_API_SUBSCRIPTION_KEY,
 # DOFFIN_CPV_CODES and/or DOFFIN_REGIONS
 
-docker compose up --build
+docker compose up --build   # or: podman compose up --build
 ```
 
 This starts Postgres, applies all migrations, then starts the crawler
@@ -97,6 +107,16 @@ go test ./...        # DB-backed tests in internal/store skip automatically
                       # without a Docker/Podman daemon
 ```
 
+Under rootless Podman, testcontainers-go needs to be pointed at the Podman
+socket explicitly (Ryuk, its cleanup sidecar, is also unreliable rootless --
+disable it):
+
+```sh
+export DOCKER_HOST="unix:///run/user/$(id -u)/podman/podman.sock"
+export TESTCONTAINERS_RYUK_DISABLED=true
+go test ./...
+```
+
 **Webapp:**
 ```sh
 cd webapp
@@ -107,12 +127,12 @@ dotnet run --project src/DoffinCaseman.Web
 
 ## Verifying end-to-end
 
-1. `docker compose up --build`; confirm `migrate` exits 0 and the other
-   three services report healthy/running.
+1. `docker compose up --build` (or `podman compose up --build`); confirm
+   `migrate` exits 0 and the other three services report healthy/running.
 2. `docker compose logs crawler`; confirm a crawl ran and upserted notices
    matching your configured CPV/region filters.
 3. `psql` into Postgres (`localhost:5432` via the dev override) and spot
-   check: `SELECT notice_id, title, cpv_codes, region FROM notices LIMIT 5;`
+   check: `SELECT notice_id, title, cpv_codes, region_codes FROM notices LIMIT 5;`
 4. Open http://localhost:8080, log in, confirm the notice list shows crawled
    notices and the filter bar works.
 5. Click "Handle" on a notice, walk its case through the full status

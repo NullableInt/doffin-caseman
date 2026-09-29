@@ -111,6 +111,22 @@ behind `DOFFIN_FETCH_DETAIL=true`, for a future feature that specifically
 wants the authoritative eForms document (e.g. displaying full lot-level
 terms) -- not needed for v1 case management.
 
+## Rate limit (confirmed live)
+
+Hit a **`429`** after roughly 30 rapid `numHitsPerPage=20` search requests in
+~8 seconds (~3-4 req/s): `{"statusCode": 429, "message": "Rate limit is
+exceeded. Try again in 53 seconds."}`. `Client.SearchNotices` treats 429 as
+retryable (like 5xx) and waits a fixed 60s before its next attempt rather
+than parsing the message's exact wording (too fragile to rely on).
+
+Not a practical problem for the crawler's actual usage pattern: a daily run
+at the default `DOFFIN_PAGE_SIZE=100` needs at most 10 sequential requests
+(1000 accessible hits / 100), comfortably under whatever the real
+sustained-rate threshold turns out to be. Only bit into this while
+deliberately testing with a small page size (20) to force many pages
+quickly -- worth remembering if `DOFFIN_PAGE_SIZE` is ever lowered a lot for
+some other reason.
+
 ## Still unconfirmed
 
 - Full `type` filter vocabulary beyond the one example value seen.
@@ -118,7 +134,8 @@ terms) -- not needed for v1 case management.
   way `cpvCode` does (assumed by API design consistency, not independently
   retested).
 - A code-to-region-name table beyond `NO081 = Oslo`.
-- Rate limits.
+- Exact sustained rate limit threshold (only know it's above ~3-4 req/s
+  briefly and below whatever 30 rapid requests amounts to).
 - `lots[].winner` shape on an actual award notice.
 
 ## Why storing raw_payload matters here

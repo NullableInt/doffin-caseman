@@ -34,6 +34,7 @@ func Run(ctx context.Context, logger *slog.Logger, client *doffin.Client, st *st
 		if err != nil {
 			logger.Error("search request failed, stopping crawl", "page", page, "error", err)
 			stats.Errors++
+			logger.Info("crawl aborted early", "fetched", stats.Fetched, "inserted", stats.Inserted, "updated", stats.Updated, "errors", stats.Errors)
 			return stats
 		}
 		if len(resp.Hits) == 0 {

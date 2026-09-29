@@ -13,7 +13,7 @@ namespace DoffinCaseman.Web.Tests;
 public class PostgresFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer container = new PostgreSqlBuilder()
-        .WithImage("postgres:16-alpine")
+        .WithImage("docker.io/library/postgres:16-alpine")
         .WithDatabase("doffin_test")
         .WithUsername("doffin")
         .WithPassword("doffin")

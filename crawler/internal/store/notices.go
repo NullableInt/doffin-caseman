@@ -65,6 +65,19 @@ func (s *Store) UpsertNotice(ctx context.Context, n doffin.Notice) (UpsertResult
 	deadline := parseTimeOrNil(n.Deadline)
 	buyerName := buyerNames(n.Buyer)
 
+	// pgx sends SQL NULL for a nil Go slice, which violates the columns'
+	// NOT NULL constraint (the '{}' default only applies when the column is
+	// omitted from the INSERT entirely, not when NULL is bound explicitly) --
+	// confirmed by a real test failure against real Postgres under Podman.
+	cpvCodes := n.CPVCodes
+	if cpvCodes == nil {
+		cpvCodes = []string{}
+	}
+	regionCodes := n.LocationID
+	if regionCodes == nil {
+		regionCodes = []string{}
+	}
+
 	var contractValue *float64
 	if n.EstimatedValue != nil && n.EstimatedValue.CurrencyCode == "NOK" {
 		contractValue = &n.EstimatedValue.Amount
@@ -75,7 +88,7 @@ func (s *Store) UpsertNotice(ctx context.Context, n doffin.Notice) (UpsertResult
 
 	err = tx.QueryRow(ctx, upsertNoticeSQL,
 		n.ID, n.Heading, buyerName, n.Description, n.Type, n.Status,
-		n.CPVCodes, n.LocationID, published, deadline, contractValue,
+		cpvCodes, regionCodes, published, deadline, contractValue,
 		n.RawPayload,
 	).Scan(&result.Inserted, &result.Changed)
 	if err != nil {

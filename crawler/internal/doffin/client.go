@@ -58,14 +58,16 @@ func (c *Client) SearchNotices(ctx context.Context, params SearchParams) (*Searc
 	reqURL := c.baseURL + "/public/v2/search?" + q.Encode()
 
 	var lastErr error
+	wait := time.Duration(0)
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(backoff(attempt)):
+			case <-time.After(wait):
 			}
 		}
+		wait = backoff(attempt + 1)
 
 		resp, err := c.doGet(ctx, reqURL)
 		if err != nil {
@@ -80,6 +82,16 @@ func (c *Client) SearchNotices(ctx context.Context, params SearchParams) (*Searc
 			continue
 		}
 
+		// 429 confirmed live (hit after ~30 rapid requests: "Rate limit is
+		// exceeded. Try again in 53 seconds."). Retryable, but needs a much
+		// longer wait than the default backoff -- the message's exact wording
+		// isn't parsed (too fragile to rely on), a fixed generous wait is used
+		// instead.
+		if resp.StatusCode == http.StatusTooManyRequests {
+			lastErr = fmt.Errorf("doffin API returned %d: %s", resp.StatusCode, truncate(body, 500))
+			wait = 60 * time.Second
+			continue
+		}
 		if resp.StatusCode >= 500 {
 			lastErr = fmt.Errorf("doffin API returned %d: %s", resp.StatusCode, truncate(body, 500))
 			continue
