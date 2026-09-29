@@ -16,7 +16,10 @@ services:
   migrate:
     image: migrate/migrate:v4.17.1
     volumes:
-      - ./db/migrations:/migrations:ro
+      # :Z relabels the bind mount for this container's exclusive use under
+      # SELinux (enforcing by default on Fedora/Bazzite); harmless under
+      # Docker, required for Podman here.
+      - ./db/migrations:/migrations:ro,Z
     command:
       - "-path=/migrations"
       - "-database=postgres://doffin:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/doffin?sslmode=disable"
@@ -30,7 +33,7 @@ services:
     environment:
       DATABASE_URL: postgres://doffin:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/doffin?sslmode=disable
       DOFFIN_API_SUBSCRIPTION_KEY: ${DOFFIN_API_SUBSCRIPTION_KEY:?set DOFFIN_API_SUBSCRIPTION_KEY in .env}
-      DOFFIN_API_BASE_URL: ${DOFFIN_API_BASE_URL:-https://dof-notices-prod-api.developer.azure-api.net}
+      DOFFIN_API_BASE_URL: ${DOFFIN_API_BASE_URL:-https://api.doffin.no}
       DOFFIN_CPV_CODES: ${DOFFIN_CPV_CODES:-}
       DOFFIN_REGIONS: ${DOFFIN_REGIONS:-}
       DOFFIN_PAGE_SIZE: ${DOFFIN_PAGE_SIZE:-100}
