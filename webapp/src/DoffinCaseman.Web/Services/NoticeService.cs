@@ -26,7 +26,7 @@ public class NoticeService(IDbContextFactory<AppDbContext> dbFactory)
             query = query.Where(n => n.CpvCodes.Contains(filter.CpvCode));
 
         if (!string.IsNullOrWhiteSpace(filter.Region))
-            query = query.Where(n => n.Region == filter.Region);
+            query = query.Where(n => n.RegionCodes.Contains(filter.Region));
 
         if (filter.CaseStatus is not null)
             query = query.Where(n => n.Case != null && n.Case.Status == filter.CaseStatus);

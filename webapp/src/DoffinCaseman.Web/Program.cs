@@ -4,14 +4,23 @@ using DoffinCaseman.Web.Data.Entities;
 using DoffinCaseman.Web.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("Connection string 'Postgres' not configured.");
 
+// case_status must be mapped as a native Postgres enum here (not a plain
+// connection string passed to UseNpgsql) -- otherwise Npgsql sends
+// CaseStatus values as text and Postgres rejects the implicit cast. See
+// CaseStatus.cs for why.
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+dataSourceBuilder.MapEnum<CaseStatus>("case_status");
+var dataSource = dataSourceBuilder.Build();
+
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(dataSource));
 
 // Cookie-based auth only -- no external logins, no self-service registration
 // (this is an internal staff tool; users are seeded directly, see

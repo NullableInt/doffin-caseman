@@ -13,7 +13,7 @@ public class Notice
     public string? NoticeType { get; set; }
     public string? Status { get; set; }
     public string[] CpvCodes { get; set; } = [];
-    public string? Region { get; set; }
+    public string[] RegionCodes { get; set; } = [];
     public DateTimeOffset? PublishedDate { get; set; }
     public DateTimeOffset? Deadline { get; set; }
     public decimal? ContractValueNok { get; set; }

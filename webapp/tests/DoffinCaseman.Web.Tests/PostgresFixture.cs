@@ -1,5 +1,7 @@
 using DoffinCaseman.Web.Data;
+using DoffinCaseman.Web.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -26,10 +28,17 @@ public class PostgresFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await container.StartAsync();
+        // Migrations must run first: case_status must already exist in the
+        // database before MapEnum can resolve its OID (see Program.cs for
+        // why this mapping is needed at all).
         await ApplyMigrationsAsync();
 
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(ConnectionString);
+        dataSourceBuilder.MapEnum<CaseStatus>("case_status");
+        var dataSource = dataSourceBuilder.Build();
+
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(ConnectionString)
+            .UseNpgsql(dataSource)
             .Options;
         DbContextFactory = new PooledDbContextFactory<AppDbContext>(options);
     }

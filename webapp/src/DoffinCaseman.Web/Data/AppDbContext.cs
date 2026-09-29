@@ -11,11 +11,11 @@ namespace DoffinCaseman.Web.Data;
 // exist by the time the webapp starts. See docs/doffin-api-notes.md and the
 // plan's "Migration ownership" section for the rationale.
 //
-// We derive from IdentityDbContext but ignore the claims/logins/tokens
-// entity sets: db/migrations only creates asp_net_users, asp_net_roles and
-// asp_net_user_roles, because v1 only uses cookie-based username/password
-// auth with roles (no external logins, no persisted claims), which never
-// touches those tables.
+// All six IdentityDbContext entity sets are mapped, including
+// claims/logins/tokens -- confirmed live that even plain username/password
+// sign-in needs asp_net_user_claims/asp_net_role_claims to exist (see
+// db/migrations/0003_identity.up.sql for why an earlier attempt to skip
+// them failed).
 public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
@@ -27,11 +27,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        modelBuilder.Ignore<IdentityUserClaim<Guid>>();
-        modelBuilder.Ignore<IdentityUserLogin<Guid>>();
-        modelBuilder.Ignore<IdentityUserToken<Guid>>();
-        modelBuilder.Ignore<IdentityRoleClaim<Guid>>();
 
         modelBuilder.Entity<ApplicationUser>(e =>
         {
@@ -60,6 +55,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(r => r.Id).HasColumnName("id");
             e.Property(r => r.Name).HasColumnName("name");
             e.Property(r => r.NormalizedName).HasColumnName("normalized_name");
+            e.Property(r => r.ConcurrencyStamp).HasColumnName("concurrency_stamp");
         });
 
         modelBuilder.Entity<IdentityUserRole<Guid>>(e =>
@@ -67,6 +63,42 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.ToTable("asp_net_user_roles");
             e.Property(r => r.UserId).HasColumnName("user_id");
             e.Property(r => r.RoleId).HasColumnName("role_id");
+        });
+
+        modelBuilder.Entity<IdentityUserClaim<Guid>>(e =>
+        {
+            e.ToTable("asp_net_user_claims");
+            e.Property(c => c.Id).HasColumnName("id");
+            e.Property(c => c.UserId).HasColumnName("user_id");
+            e.Property(c => c.ClaimType).HasColumnName("claim_type");
+            e.Property(c => c.ClaimValue).HasColumnName("claim_value");
+        });
+
+        modelBuilder.Entity<IdentityRoleClaim<Guid>>(e =>
+        {
+            e.ToTable("asp_net_role_claims");
+            e.Property(c => c.Id).HasColumnName("id");
+            e.Property(c => c.RoleId).HasColumnName("role_id");
+            e.Property(c => c.ClaimType).HasColumnName("claim_type");
+            e.Property(c => c.ClaimValue).HasColumnName("claim_value");
+        });
+
+        modelBuilder.Entity<IdentityUserLogin<Guid>>(e =>
+        {
+            e.ToTable("asp_net_user_logins");
+            e.Property(l => l.LoginProvider).HasColumnName("login_provider");
+            e.Property(l => l.ProviderKey).HasColumnName("provider_key");
+            e.Property(l => l.ProviderDisplayName).HasColumnName("provider_display_name");
+            e.Property(l => l.UserId).HasColumnName("user_id");
+        });
+
+        modelBuilder.Entity<IdentityUserToken<Guid>>(e =>
+        {
+            e.ToTable("asp_net_user_tokens");
+            e.Property(t => t.UserId).HasColumnName("user_id");
+            e.Property(t => t.LoginProvider).HasColumnName("login_provider");
+            e.Property(t => t.Name).HasColumnName("name");
+            e.Property(t => t.Value).HasColumnName("value");
         });
 
         modelBuilder.Entity<Notice>(e =>
@@ -81,7 +113,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(n => n.NoticeType).HasColumnName("notice_type");
             e.Property(n => n.Status).HasColumnName("status");
             e.Property(n => n.CpvCodes).HasColumnName("cpv_codes").HasColumnType("text[]");
-            e.Property(n => n.Region).HasColumnName("region");
+            e.Property(n => n.RegionCodes).HasColumnName("region_codes").HasColumnType("text[]");
             e.Property(n => n.PublishedDate).HasColumnName("published_date");
             e.Property(n => n.Deadline).HasColumnName("deadline");
             e.Property(n => n.ContractValueNok).HasColumnName("contract_value_nok");
@@ -100,12 +132,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.ToTable("cases");
             e.Property(c => c.Id).HasColumnName("id");
             e.Property(c => c.NoticeId).HasColumnName("notice_id");
+            // Mapped as a native Postgres enum via
+            // NpgsqlDataSourceBuilder.MapEnum<CaseStatus>() in Program.cs /
+            // PostgresFixture.cs -- no HasConversion needed (or wanted: an
+            // earlier string-conversion attempt failed live against real
+            // Postgres, see CaseStatus.cs).
             e.Property(c => c.Status)
                 .HasColumnName("status")
-                .HasColumnType("case_status")
-                .HasConversion(
-                    v => CaseStatusToLabel(v),
-                    v => CaseStatusFromLabel(v));
+                .HasColumnType("case_status");
             e.Property(c => c.AssigneeId).HasColumnName("assignee_id");
             e.Property(c => c.CreatedAt).HasColumnName("created_at");
             e.Property(c => c.UpdatedAt).HasColumnName("updated_at");
@@ -129,16 +163,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(h => h.CaseId).HasColumnName("case_id");
             e.Property(h => h.OldStatus)
                 .HasColumnName("old_status")
-                .HasColumnType("case_status")
-                .HasConversion(
-                    v => v == null ? null : CaseStatusToLabel(v.Value),
-                    v => v == null ? null : CaseStatusFromLabel(v));
+                .HasColumnType("case_status");
             e.Property(h => h.NewStatus)
                 .HasColumnName("new_status")
-                .HasColumnType("case_status")
-                .HasConversion(
-                    v => CaseStatusToLabel(v),
-                    v => CaseStatusFromLabel(v));
+                .HasColumnType("case_status");
             e.Property(h => h.ChangedBy).HasColumnName("changed_by");
             e.Property(h => h.ChangedAt).HasColumnName("changed_at");
 
@@ -170,28 +198,4 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 .HasForeignKey(c => c.UserId);
         });
     }
-
-    private static string CaseStatusToLabel(CaseStatus status) => status switch
-    {
-        CaseStatus.New => "new",
-        CaseStatus.UnderReview => "under_review",
-        CaseStatus.Bidding => "bidding",
-        CaseStatus.Submitted => "submitted",
-        CaseStatus.Won => "won",
-        CaseStatus.Lost => "lost",
-        CaseStatus.Archived => "archived",
-        _ => throw new ArgumentOutOfRangeException(nameof(status)),
-    };
-
-    private static CaseStatus CaseStatusFromLabel(string label) => label switch
-    {
-        "new" => CaseStatus.New,
-        "under_review" => CaseStatus.UnderReview,
-        "bidding" => CaseStatus.Bidding,
-        "submitted" => CaseStatus.Submitted,
-        "won" => CaseStatus.Won,
-        "lost" => CaseStatus.Lost,
-        "archived" => CaseStatus.Archived,
-        _ => throw new ArgumentOutOfRangeException(nameof(label), label, "Unknown case_status label"),
-    };
 }

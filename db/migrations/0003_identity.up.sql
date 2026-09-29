@@ -22,9 +22,10 @@ CREATE TABLE asp_net_users (
 );
 
 CREATE TABLE asp_net_roles (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name            TEXT NOT NULL,
-    normalized_name TEXT NOT NULL UNIQUE
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name              TEXT NOT NULL,
+    normalized_name   TEXT NOT NULL UNIQUE,
+    concurrency_stamp TEXT
 );
 
 CREATE TABLE asp_net_user_roles (
@@ -33,4 +34,40 @@ CREATE TABLE asp_net_user_roles (
     PRIMARY KEY (user_id, role_id)
 );
 
-INSERT INTO asp_net_roles (name, normalized_name) VALUES ('Staff', 'STAFF');
+-- Confirmed live: even plain username/password sign-in (no claims/external
+-- logins ever added) fails without these four tables. SignInManager always
+-- builds the claims principal via UserClaimsPrincipalFactory, which
+-- unconditionally calls UserManager.GetClaimsAsync (and, for each role,
+-- GetRoleClaimsAsync) -- querying user_claims/role_claims even when empty.
+-- An earlier assumption that these could be skipped for v1 was wrong.
+CREATE TABLE asp_net_user_claims (
+    id          SERIAL PRIMARY KEY,
+    user_id     UUID NOT NULL REFERENCES asp_net_users(id) ON DELETE CASCADE,
+    claim_type  TEXT,
+    claim_value TEXT
+);
+
+CREATE TABLE asp_net_role_claims (
+    id          SERIAL PRIMARY KEY,
+    role_id     UUID NOT NULL REFERENCES asp_net_roles(id) ON DELETE CASCADE,
+    claim_type  TEXT,
+    claim_value TEXT
+);
+
+CREATE TABLE asp_net_user_logins (
+    login_provider        TEXT NOT NULL,
+    provider_key          TEXT NOT NULL,
+    provider_display_name TEXT,
+    user_id               UUID NOT NULL REFERENCES asp_net_users(id) ON DELETE CASCADE,
+    PRIMARY KEY (login_provider, provider_key)
+);
+
+CREATE TABLE asp_net_user_tokens (
+    user_id        UUID NOT NULL REFERENCES asp_net_users(id) ON DELETE CASCADE,
+    login_provider TEXT NOT NULL,
+    name           TEXT NOT NULL,
+    value          TEXT,
+    PRIMARY KEY (user_id, login_provider, name)
+);
+
+INSERT INTO asp_net_roles (name, normalized_name, concurrency_stamp) VALUES ('Staff', 'STAFF', gen_random_uuid()::text);

@@ -32,7 +32,10 @@ assumed about the Doffin API.
 - A Doffin Public API subscription key: sign up at
   https://dof-notices-prod-api.developer.azure-api.net/ (actual API calls go
   to `api.doffin.no`, a different host -- see `docs/doffin-api-notes.md`).
-- For local (non-container) development: Go 1.23+, .NET 8 SDK
+- For local (non-container) development: Go 1.23+, .NET 8 SDK (verified
+  working via `brew install dotnet@8`, which is keg-only -- add
+  `export DOTNET_ROOT="$(brew --prefix dotnet@8)/libexec"` and
+  `export PATH="$(brew --prefix dotnet@8)/bin:$PATH"` to your shell profile)
 
 ## Secrets
 

@@ -1,7 +1,9 @@
 -- Local development only. Do NOT run against production.
 -- Seeds two staff users. Password for both is "ChangeMe123!" hashed with
--- ASP.NET Core Identity's default PasswordHasher<TUser> (v3 format).
--- Regenerate this hash if you change the seed password (see webapp README).
+-- ASP.NET Core Identity's default PasswordHasher<TUser> (v3 format) --
+-- a real hash, generated and verified live via an actual login (see
+-- docs/doffin-api-notes.md / session history), not a placeholder.
+-- Regenerate if you change the seed password (see webapp README).
 
 INSERT INTO asp_net_users (
     id, user_name, normalized_user_name, email, normalized_email,
@@ -9,10 +11,10 @@ INSERT INTO asp_net_users (
     lockout_enabled, display_name
 ) VALUES
     (gen_random_uuid(), 'alice', 'ALICE', 'alice@example.com', 'ALICE@EXAMPLE.COM',
-     true, 'AQAAAAIAAYagAAAAEPLACEHOLDERHASHPLACEHOLDERHASHPLACEHOLDERHASH==',
+     true, 'AQAAAAIAAYagAAAAEKuNhcjj6+FfKnO5FV3i8YL7CegUHw1Fpf6lADzpCmhqlkx/qksezPxTBoPNdDrQQQ==',
      gen_random_uuid()::text, gen_random_uuid()::text, true, 'Alice'),
     (gen_random_uuid(), 'bob', 'BOB', 'bob@example.com', 'BOB@EXAMPLE.COM',
-     true, 'AQAAAAIAAYagAAAAEPLACEHOLDERHASHPLACEHOLDERHASHPLACEHOLDERHASH==',
+     true, 'AQAAAAIAAYagAAAAEKuNhcjj6+FfKnO5FV3i8YL7CegUHw1Fpf6lADzpCmhqlkx/qksezPxTBoPNdDrQQQ==',
      gen_random_uuid()::text, gen_random_uuid()::text, true, 'Bob')
 ON CONFLICT DO NOTHING;
 
