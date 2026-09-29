@@ -127,6 +127,18 @@ deliberately testing with a small page size (20) to force many pages
 quickly -- worth remembering if `DOFFIN_PAGE_SIZE` is ever lowered a lot for
 some other reason.
 
+## Public notice URL (confirmed)
+
+**`https://doffin.no/notices/{notice_id}`** -- e.g.
+`https://doffin.no/notices/2024-106328`. Not part of the API response
+itself (`doffinClassicUrl` exists on search hits but was null on every live
+sample checked, and there's no other URL field). Confirmed by finding real,
+independently search-engine-indexed notice pages at this exact path;
+doffin.no's own server returns identical generic HTML for every path (it's
+a client-rendered SPA -- no way to verify a path server-side via curl), so
+this couldn't be confirmed by probing the site directly the way the API
+host/path were. Used by `CaseDetail.razor`'s "View on Doffin" link.
+
 ## Still unconfirmed
 
 - Full `type` filter vocabulary beyond the one example value seen.

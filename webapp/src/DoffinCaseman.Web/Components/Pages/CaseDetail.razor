@@ -18,7 +18,8 @@ else
     <p class="notice-meta">
         @currentCase.Notice.BuyerName &middot;
         Published @currentCase.Notice.PublishedDate?.ToLocalTime().ToString("d") &middot;
-        Deadline @currentCase.Notice.Deadline?.ToLocalTime().ToString("d")
+        Deadline @currentCase.Notice.Deadline?.ToLocalTime().ToString("d") &middot;
+        <a href="@DoffinUrl" target="_blank" rel="noopener noreferrer">View on Doffin ↗</a>
     </p>
     <p>@currentCase.Notice.Description</p>
 
@@ -62,6 +63,12 @@ else
     private Case? currentCase;
     private List<ApplicationUser> assignableUsers = [];
     private Guid currentUserId;
+
+    // Confirmed live against real, independently-indexed pages
+    // (doffin.no/notices/2024-106328 etc.) -- see docs/doffin-api-notes.md.
+    // Not part of the API response itself: "doffinClassicUrl" exists in
+    // search hits but was null on every live sample checked.
+    private string DoffinUrl => $"https://doffin.no/notices/{currentCase!.Notice.NoticeId}";
 
     protected override async Task OnInitializedAsync()
     {
