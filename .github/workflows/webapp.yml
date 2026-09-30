@@ -41,13 +41,13 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore
-        run: dotnet restore DoffinCaseman.sln
+        run: dotnet restore DoffinCaseman.slnx
 
       - name: Build
-        run: dotnet build DoffinCaseman.sln --no-restore -c Release
+        run: dotnet build DoffinCaseman.slnx --no-restore -c Release
 
       - name: Test
-        run: dotnet test DoffinCaseman.sln --no-build -c Release
+        run: dotnet test DoffinCaseman.slnx --no-build -c Release
 
   docker:
     needs: build-test

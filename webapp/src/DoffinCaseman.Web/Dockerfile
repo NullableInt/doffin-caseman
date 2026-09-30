@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY DoffinCaseman.sln Directory.Build.props Directory.Packages.props ./
+COPY DoffinCaseman.slnx Directory.Build.props Directory.Packages.props ./
 COPY src/DoffinCaseman.Web/DoffinCaseman.Web.csproj src/DoffinCaseman.Web/
 COPY tests/DoffinCaseman.Web.Tests/DoffinCaseman.Web.Tests.csproj tests/DoffinCaseman.Web.Tests/
 RUN dotnet restore src/DoffinCaseman.Web/DoffinCaseman.Web.csproj

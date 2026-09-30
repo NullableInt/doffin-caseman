@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/DoffinCaseman.Web/DoffinCaseman.Web.csproj" />
+  <Project Path="tests/DoffinCaseman.Web.Tests/DoffinCaseman.Web.Tests.csproj" />
+</Solution>
