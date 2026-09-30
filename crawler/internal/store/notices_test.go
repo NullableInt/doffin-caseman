@@ -36,7 +36,9 @@ func newTestStore(t *testing.T) *Store {
 			"POSTGRES_USER":     "doffin",
 			"POSTGRES_PASSWORD": "doffin",
 		},
-		WaitingFor: wait.ForListeningPort("5432/tcp").WithStartupTimeout(60 * time.Second),
+		WaitingFor: wait.ForLog("database system is ready to accept connections").
+			WithOccurrence(2).
+			WithStartupTimeout(60 * time.Second),
 	}
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
