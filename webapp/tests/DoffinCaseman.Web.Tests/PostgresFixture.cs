@@ -24,7 +24,7 @@ public class PostgresFixture : IAsyncLifetime
 
     public IDbContextFactory<AppDbContext> DbContextFactory { get; private set; } = default!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await container.StartAsync();
         // Migrations must run first: case_status must already exist in the
@@ -42,7 +42,7 @@ public class PostgresFixture : IAsyncLifetime
         DbContextFactory = new PooledDbContextFactory<AppDbContext>(options);
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await container.DisposeAsync();
     }

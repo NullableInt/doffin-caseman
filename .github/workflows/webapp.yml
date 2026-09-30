@@ -47,7 +47,7 @@ jobs:
         run: dotnet build DoffinCaseman.slnx --no-restore -c Release
 
       - name: Test
-        run: dotnet test DoffinCaseman.slnx --no-build -c Release
+        run: dotnet test --solution DoffinCaseman.slnx --no-build -c Release
 
   docker:
     needs: build-test
