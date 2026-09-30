@@ -14,7 +14,7 @@ services:
       retries: 10
 
   migrate:
-    image: docker.io/migrate/migrate:v4.17.1
+    image: docker.io/migrate/migrate:v4.20.1
     volumes:
       # :Z relabels the bind mount for this container's exclusive use under
       # SELinux (enforcing by default on Fedora/Bazzite); harmless under
