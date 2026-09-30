@@ -1,0 +1,86 @@
+name: Webapp (.NET)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "webapp/**"
+      - "db/migrations/**"
+      - ".github/workflows/webapp.yml"
+  pull_request:
+    paths:
+      - "webapp/**"
+      - "db/migrations/**"
+      - ".github/workflows/webapp.yml"
+
+concurrency:
+  group: webapp-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('webapp/**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore DoffinCaseman.sln
+
+      - name: Build
+        run: dotnet build DoffinCaseman.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test DoffinCaseman.sln --no-build -c Release
+
+  docker:
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-web
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: webapp
+          file: webapp/src/DoffinCaseman.Web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=webapp
+          cache-to: type=gha,mode=max,scope=webapp
