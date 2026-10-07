@@ -32,6 +32,8 @@
             </script>
             <AuthorizeView>
                 <Authorized>
+                    <a href="/">Notices</a>
+                    <a href="/my-cases">My cases</a>
                     <span class="current-user">@context.User.Identity?.Name</span>
                     <form method="post" action="/logout">
                         <button type="submit" class="link-button">Log out</button>

@@ -1,0 +1,81 @@
+@page "/my-cases"
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using DoffinCaseman.Web.Data.Entities
+@using DoffinCaseman.Web.Services
+@inject CaseService CaseService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>My cases</PageTitle>
+
+<h1>My cases</h1>
+
+<div class="filter-bar">
+    <label class="toggle">
+        <input type="checkbox" checked="@includeArchived" @onchange="OnIncludeArchivedChanged" />
+        Show archived
+    </label>
+</div>
+
+@if (result is null)
+{
+    <p>Loading...</p>
+}
+else if (result.TotalCount == 0)
+{
+    <p>No cases are assigned to you@(includeArchived ? "" : " (archived cases are hidden)").</p>
+}
+else
+{
+    <table class="notice-table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Buyer</th>
+                <th>Deadline</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in result.Items)
+            {
+                <tr>
+                    <td>@item.Notice.Title</td>
+                    <td>@item.Notice.BuyerName</td>
+                    <td>@item.Notice.Deadline?.ToLocalTime().ToString("d")</td>
+                    <td><StatusBadge Status="@item.Status" /></td>
+                    <td>@item.UpdatedAt.ToLocalTime().ToString("d")</td>
+                    <td><a href="/cases/@item.Id">Open case</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <Pager Page="result.Page" TotalPages="result.TotalPages" TotalCount="result.TotalCount" OnPageChanged="LoadAsync" />
+}
+
+@code {
+    private PagedResult<Case>? result;
+    private Guid currentUserId;
+    private bool includeArchived;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var idClaim = authState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        currentUserId = idClaim is not null ? Guid.Parse(idClaim) : Guid.Empty;
+
+        await LoadAsync(1);
+    }
+
+    private async Task LoadAsync(int page) =>
+        result = await CaseService.GetAssignedToAsync(currentUserId, includeArchived, page);
+
+    private async Task OnIncludeArchivedChanged(ChangeEventArgs e)
+    {
+        includeArchived = e.Value is true;
+        await LoadAsync(1);
+    }
+}

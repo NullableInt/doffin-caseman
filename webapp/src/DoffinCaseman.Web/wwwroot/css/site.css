@@ -212,6 +212,11 @@ button:disabled {
     gap: 1rem;
 }
 
+.top-bar nav a {
+    color: #fff;
+    text-underline-offset: 2px;
+}
+
 .top-bar .current-user {
     color: #fff;
 }

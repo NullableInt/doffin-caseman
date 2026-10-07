@@ -116,4 +116,65 @@ public class CaseWorkflowTests(PostgresFixture fixture)
         await Assert.ThrowsAsync<ArgumentException>(
             () => service.AddCommentAsync(@case.Id, userId, "   "));
     }
+
+    [Fact]
+    public async Task GetAssignedToAsync_ReturnsOnlyCasesAssignedToUser()
+    {
+        var me = await SeedUserAsync($"me-{Guid.NewGuid():N}");
+        var other = await SeedUserAsync($"other-{Guid.NewGuid():N}");
+        var service = new CaseService(fixture.DbContextFactory);
+
+        var mine = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
+        var theirs = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
+        await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync()); // unassigned
+        await service.AssignAsync(mine.Id, me);
+        await service.AssignAsync(theirs.Id, other);
+
+        var result = await service.GetAssignedToAsync(me);
+
+        Assert.Equal([mine.Id], result.Items.Select(c => c.Id));
+        Assert.Equal(1, result.TotalCount);
+        Assert.NotNull(result.Items[0].Notice);
+    }
+
+    [Fact]
+    public async Task GetAssignedToAsync_HidesArchivedUnlessRequested()
+    {
+        var me = await SeedUserAsync($"me-{Guid.NewGuid():N}");
+        var service = new CaseService(fixture.DbContextFactory);
+
+        var active = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
+        var archived = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
+        await service.AssignAsync(active.Id, me);
+        await service.AssignAsync(archived.Id, me);
+        await service.ChangeStatusAsync(archived.Id, CaseStatus.Archived, me);
+
+        var hidden = await service.GetAssignedToAsync(me);
+        var shown = await service.GetAssignedToAsync(me, includeArchived: true);
+
+        Assert.Equal([active.Id], hidden.Items.Select(c => c.Id));
+        Assert.Equal(2, shown.TotalCount);
+    }
+
+    [Fact]
+    public async Task GetAssignedToAsync_PagesNewestUpdatedFirst()
+    {
+        var me = await SeedUserAsync($"me-{Guid.NewGuid():N}");
+        var service = new CaseService(fixture.DbContextFactory);
+
+        var ids = new List<long>();
+        for (var i = 0; i < 3; i++)
+        {
+            var c = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
+            await service.AssignAsync(c.Id, me); // each assign bumps UpdatedAt
+            ids.Add(c.Id);
+        }
+
+        var first = await service.GetAssignedToAsync(me, page: 1, pageSize: 2);
+        var second = await service.GetAssignedToAsync(me, page: 2, pageSize: 2);
+
+        Assert.Equal(3, first.TotalCount);
+        Assert.Equal(2, first.TotalPages);
+        Assert.Equal([ids[2], ids[1], ids[0]], first.Items.Concat(second.Items).Select(c => c.Id));
+    }
 }

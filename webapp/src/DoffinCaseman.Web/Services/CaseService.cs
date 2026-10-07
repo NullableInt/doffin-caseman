@@ -45,6 +45,34 @@ public class CaseService(IDbContextFactory<AppDbContext> dbFactory)
             .FirstOrDefaultAsync(c => c.Id == caseId);
     }
 
+    public async Task<PagedResult<Case>> GetAssignedToAsync(
+        Guid assigneeId, bool includeArchived = false, int page = 1, int pageSize = 25)
+    {
+        pageSize = Math.Clamp(pageSize, 1, 200);
+        page = Math.Max(1, page);
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var query = db.Cases.AsNoTracking().Where(c => c.AssigneeId == assigneeId);
+        if (!includeArchived)
+            query = query.Where(c => c.Status != CaseStatus.Archived);
+
+        var total = await query.CountAsync();
+
+        var lastPage = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        page = Math.Min(page, lastPage);
+
+        var items = await query
+            .Include(c => c.Notice)
+            .OrderByDescending(c => c.UpdatedAt)
+            .ThenBy(c => c.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<Case>(items, page, pageSize, total);
+    }
+
     public async Task ChangeStatusAsync(long caseId, CaseStatus newStatus, Guid changedByUserId)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
