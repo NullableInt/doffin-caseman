@@ -14,7 +14,7 @@ public class CaseService(IDbContextFactory<AppDbContext> dbFactory)
         await using var db = await dbFactory.CreateDbContextAsync();
 
         var existing = await db.Cases
-            .Include(c => c.Assignee)
+            .Include(c => c.Assignees).ThenInclude(a => a.User)
             .Include(c => c.Comments).ThenInclude(c => c.User)
             .Include(c => c.StatusHistory)
             .FirstOrDefaultAsync(c => c.NoticeId == noticeId);
@@ -39,7 +39,7 @@ public class CaseService(IDbContextFactory<AppDbContext> dbFactory)
         await using var db = await dbFactory.CreateDbContextAsync();
         return await db.Cases
             .Include(c => c.Notice)
-            .Include(c => c.Assignee)
+            .Include(c => c.Assignees.OrderBy(a => a.AssignedAt)).ThenInclude(a => a.User)
             .Include(c => c.Comments.OrderBy(cm => cm.CreatedAt)).ThenInclude(c => c.User)
             .Include(c => c.StatusHistory.OrderBy(h => h.ChangedAt)).ThenInclude(h => h.ChangedByUser)
             .FirstOrDefaultAsync(c => c.Id == caseId);
@@ -53,7 +53,7 @@ public class CaseService(IDbContextFactory<AppDbContext> dbFactory)
 
         await using var db = await dbFactory.CreateDbContextAsync();
 
-        var query = db.Cases.AsNoTracking().Where(c => c.AssigneeId == assigneeId);
+        var query = db.Cases.AsNoTracking().Where(c => c.Assignees.Any(a => a.UserId == assigneeId));
         if (!includeArchived)
             query = query.Where(c => c.Status != CaseStatus.Archived);
 
@@ -98,15 +98,44 @@ public class CaseService(IDbContextFactory<AppDbContext> dbFactory)
         await tx.CommitAsync();
     }
 
-    public async Task AssignAsync(long caseId, Guid? assigneeId)
+    // Add/remove are idempotent and touch one assignee at a time, so two
+    // people editing the same case's assignees can't overwrite each other.
+    public async Task AddAssigneeAsync(long caseId, Guid userId)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
+        await using var tx = await db.Database.BeginTransactionAsync();
+
         var @case = await db.Cases.FirstOrDefaultAsync(c => c.Id == caseId)
             ?? throw new InvalidOperationException($"Case {caseId} not found.");
 
-        @case.AssigneeId = assigneeId;
-        @case.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync();
+        var now = DateTimeOffset.UtcNow;
+        // ON CONFLICT keeps a concurrent double-add from failing on the PK.
+        var added = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO case_assignees (case_id, user_id, assigned_at) VALUES ({caseId}, {userId}, {now}) ON CONFLICT DO NOTHING");
+
+        if (added > 0)
+        {
+            @case.UpdatedAt = now;
+            await db.SaveChangesAsync();
+        }
+        await tx.CommitAsync();
+    }
+
+    public async Task RemoveAssigneeAsync(long caseId, Guid userId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var tx = await db.Database.BeginTransactionAsync();
+
+        var removed = await db.CaseAssignees
+            .Where(a => a.CaseId == caseId && a.UserId == userId)
+            .ExecuteDeleteAsync();
+
+        if (removed > 0)
+        {
+            await db.Cases.Where(c => c.Id == caseId)
+                .ExecuteUpdateAsync(set => set.SetProperty(c => c.UpdatedAt, DateTimeOffset.UtcNow));
+        }
+        await tx.CommitAsync();
     }
 
     public async Task AddCommentAsync(long caseId, Guid userId, string body)

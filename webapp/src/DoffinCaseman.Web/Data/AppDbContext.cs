@@ -23,6 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Case> Cases => Set<Case>();
     public DbSet<CaseStatusHistory> CaseStatusHistories => Set<CaseStatusHistory>();
     public DbSet<CaseComment> CaseComments => Set<CaseComment>();
+    public DbSet<CaseAssignee> CaseAssignees => Set<CaseAssignee>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -147,7 +148,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(c => c.Status)
                 .HasColumnName("status")
                 .HasColumnType("case_status");
-            e.Property(c => c.AssigneeId).HasColumnName("assignee_id");
             e.Property(c => c.CreatedAt).HasColumnName("created_at");
             e.Property(c => c.UpdatedAt).HasColumnName("updated_at");
 
@@ -156,11 +156,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 .HasForeignKey<Case>(c => c.NoticeId)
                 .HasPrincipalKey<Notice>(n => n.NoticeId);
 
-            e.HasOne(c => c.Assignee)
-                .WithMany()
-                .HasForeignKey(c => c.AssigneeId);
-
             e.HasIndex(c => c.NoticeId).IsUnique();
+        });
+
+        modelBuilder.Entity<CaseAssignee>(e =>
+        {
+            e.ToTable("case_assignees");
+            e.HasKey(a => new { a.CaseId, a.UserId });
+            e.Property(a => a.CaseId).HasColumnName("case_id");
+            e.Property(a => a.UserId).HasColumnName("user_id");
+            e.Property(a => a.AssignedAt).HasColumnName("assigned_at");
+
+            e.HasOne(a => a.Case)
+                .WithMany(c => c.Assignees)
+                .HasForeignKey(a => a.CaseId);
+
+            e.HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId);
         });
 
         modelBuilder.Entity<CaseStatusHistory>(e =>

@@ -34,10 +34,9 @@ else
             </select>
         </label>
 
-        <label>
-            Assignee
-            <AssigneePicker AssigneeId="currentCase.AssigneeId" Users="assignableUsers" AssigneeIdChanged="OnAssigneeChangedAsync" />
-        </label>
+        <AssigneePicker AssigneeIds="currentCase.Assignees.Select(a => a.UserId).ToList()"
+                        Users="assignableUsers"
+                        AssigneeToggled="OnAssigneeToggledAsync" />
     </div>
 
     <h2>Status history</h2>
@@ -93,10 +92,13 @@ else
         await LoadAsync();
     }
 
-    private async Task OnAssigneeChangedAsync(Guid? assigneeId)
+    private async Task OnAssigneeToggledAsync((Guid UserId, bool Assigned) change)
     {
         if (currentCase is null) return;
-        await CaseService.AssignAsync(currentCase.Id, assigneeId);
+        if (change.Assigned)
+            await CaseService.AddAssigneeAsync(currentCase.Id, change.UserId);
+        else
+            await CaseService.RemoveAssigneeAsync(currentCase.Id, change.UserId);
         await LoadAsync();
     }
 

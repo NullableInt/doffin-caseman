@@ -127,8 +127,8 @@ public class CaseWorkflowTests(PostgresFixture fixture)
         var mine = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
         var theirs = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
         await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync()); // unassigned
-        await service.AssignAsync(mine.Id, me);
-        await service.AssignAsync(theirs.Id, other);
+        await service.AddAssigneeAsync(mine.Id, me);
+        await service.AddAssigneeAsync(theirs.Id, other);
 
         var result = await service.GetAssignedToAsync(me);
 
@@ -145,8 +145,8 @@ public class CaseWorkflowTests(PostgresFixture fixture)
 
         var active = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
         var archived = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
-        await service.AssignAsync(active.Id, me);
-        await service.AssignAsync(archived.Id, me);
+        await service.AddAssigneeAsync(active.Id, me);
+        await service.AddAssigneeAsync(archived.Id, me);
         await service.ChangeStatusAsync(archived.Id, CaseStatus.Archived, me);
 
         var hidden = await service.GetAssignedToAsync(me);
@@ -166,7 +166,7 @@ public class CaseWorkflowTests(PostgresFixture fixture)
         for (var i = 0; i < 3; i++)
         {
             var c = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
-            await service.AssignAsync(c.Id, me); // each assign bumps UpdatedAt
+            await service.AddAssigneeAsync(c.Id, me); // each assign bumps UpdatedAt
             ids.Add(c.Id);
         }
 
@@ -176,5 +176,59 @@ public class CaseWorkflowTests(PostgresFixture fixture)
         Assert.Equal(3, first.TotalCount);
         Assert.Equal(2, first.TotalPages);
         Assert.Equal([ids[2], ids[1], ids[0]], first.Items.Concat(second.Items).Select(c => c.Id));
+    }
+
+    [Fact]
+    public async Task AddAssigneeAsync_SupportsMultipleAssigneesAndIsIdempotent()
+    {
+        var alice = await SeedUserAsync($"alice-{Guid.NewGuid():N}");
+        var bob = await SeedUserAsync($"bob-{Guid.NewGuid():N}");
+        var service = new CaseService(fixture.DbContextFactory);
+        var @case = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
+
+        await service.AddAssigneeAsync(@case.Id, alice);
+        await service.AddAssigneeAsync(@case.Id, bob);
+        await service.AddAssigneeAsync(@case.Id, alice); // duplicate: no error, no second row
+
+        var loaded = await service.GetByIdAsync(@case.Id);
+        Assert.NotNull(loaded);
+        Assert.Equal(
+            new[] { alice, bob }.Order(),
+            loaded.Assignees.Select(a => a.UserId).Order());
+    }
+
+    [Fact]
+    public async Task RemoveAssigneeAsync_RemovesOnlyThatUser()
+    {
+        var alice = await SeedUserAsync($"alice-{Guid.NewGuid():N}");
+        var bob = await SeedUserAsync($"bob-{Guid.NewGuid():N}");
+        var service = new CaseService(fixture.DbContextFactory);
+        var @case = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
+        await service.AddAssigneeAsync(@case.Id, alice);
+        await service.AddAssigneeAsync(@case.Id, bob);
+
+        await service.RemoveAssigneeAsync(@case.Id, alice);
+        await service.RemoveAssigneeAsync(@case.Id, alice); // already gone: no error
+
+        var loaded = await service.GetByIdAsync(@case.Id);
+        Assert.Equal([bob], loaded!.Assignees.Select(a => a.UserId));
+    }
+
+    [Fact]
+    public async Task GetAssignedToAsync_ReturnsCaseForEveryAssignee()
+    {
+        var alice = await SeedUserAsync($"alice-{Guid.NewGuid():N}");
+        var bob = await SeedUserAsync($"bob-{Guid.NewGuid():N}");
+        var service = new CaseService(fixture.DbContextFactory);
+        var shared = await service.GetOrCreateForNoticeAsync(await SeedNoticeAsync());
+        await service.AddAssigneeAsync(shared.Id, alice);
+        await service.AddAssigneeAsync(shared.Id, bob);
+
+        var forAlice = await service.GetAssignedToAsync(alice);
+        var forBob = await service.GetAssignedToAsync(bob);
+
+        Assert.Equal([shared.Id], forAlice.Items.Select(c => c.Id));
+        Assert.Equal([shared.Id], forBob.Items.Select(c => c.Id));
+        Assert.Equal(1, forAlice.TotalCount); // joined rows must not duplicate the case
     }
 }

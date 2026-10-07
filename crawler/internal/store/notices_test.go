@@ -207,10 +207,16 @@ func TestUpsertNotice_NeverTouchesCaseData(t *testing.T) {
 
 	var caseID int64
 	if err := s.pool.QueryRow(ctx, `
-		INSERT INTO cases (notice_id, status, assignee_id) VALUES ($1, 'bidding', $2) RETURNING id`,
-		n.ID, userID,
+		INSERT INTO cases (notice_id, status) VALUES ($1, 'bidding') RETURNING id`,
+		n.ID,
 	).Scan(&caseID); err != nil {
 		t.Fatalf("seeding case: %v", err)
+	}
+	if _, err := s.pool.Exec(ctx, `
+		INSERT INTO case_assignees (case_id, user_id) VALUES ($1, $2)`,
+		caseID, userID,
+	); err != nil {
+		t.Fatalf("seeding assignee: %v", err)
 	}
 	if _, err := s.pool.Exec(ctx, `
 		INSERT INTO case_comments (case_id, user_id, body) VALUES ($1, $2, 'Looks promising')`,
@@ -224,12 +230,17 @@ func TestUpsertNotice_NeverTouchesCaseData(t *testing.T) {
 		t.Fatalf("re-upsert failed: %v", err)
 	}
 
-	var status, assignee string
-	if err := s.pool.QueryRow(ctx, `SELECT status, assignee_id FROM cases WHERE id = $1`, caseID).Scan(&status, &assignee); err != nil {
+	var status string
+	if err := s.pool.QueryRow(ctx, `SELECT status FROM cases WHERE id = $1`, caseID).Scan(&status); err != nil {
 		t.Fatalf("querying case: %v", err)
 	}
 	if status != "bidding" {
 		t.Errorf("case status changed to %q after notice re-crawl, want unchanged 'bidding'", status)
+	}
+
+	var assignee string
+	if err := s.pool.QueryRow(ctx, `SELECT user_id FROM case_assignees WHERE case_id = $1`, caseID).Scan(&assignee); err != nil {
+		t.Fatalf("querying assignees: %v", err)
 	}
 	if assignee != userID {
 		t.Errorf("case assignee changed after notice re-crawl")

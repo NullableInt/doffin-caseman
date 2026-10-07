@@ -1,28 +1,30 @@
 @using DoffinCaseman.Web.Data.Entities
 
-<select value="@(AssigneeId?.ToString() ?? "")" @onchange="OnChanged">
-    <option value="">Unassigned</option>
+<fieldset class="assignee-picker">
+    <legend>Assignees</legend>
     @foreach (var user in Users)
     {
-        <option value="@user.Id">@user.DisplayName</option>
+        <label class="toggle">
+            <input type="checkbox"
+                   checked="@AssigneeIds.Contains(user.Id)"
+                   @onchange="e => OnToggled(user.Id, e.Value is true)" />
+            @user.DisplayName
+        </label>
     }
-</select>
+</fieldset>
 
 @code {
     [Parameter]
-    public Guid? AssigneeId { get; set; }
+    public IReadOnlyCollection<Guid> AssigneeIds { get; set; } = [];
 
     [Parameter]
     public List<ApplicationUser> Users { get; set; } = [];
 
+    // (userId, isAssigned) -- one user at a time so concurrent edits by
+    // different people don't overwrite each other.
     [Parameter]
-    public EventCallback<Guid?> AssigneeIdChanged { get; set; }
+    public EventCallback<(Guid UserId, bool Assigned)> AssigneeToggled { get; set; }
 
-    private async Task OnChanged(ChangeEventArgs e)
-    {
-        var value = e.Value?.ToString();
-        var newId = string.IsNullOrEmpty(value) ? (Guid?)null : Guid.Parse(value);
-        AssigneeId = newId;
-        await AssigneeIdChanged.InvokeAsync(newId);
-    }
+    private Task OnToggled(Guid userId, bool assigned) =>
+        AssigneeToggled.InvokeAsync((userId, assigned));
 }
