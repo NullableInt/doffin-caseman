@@ -1,0 +1,47 @@
+@using DoffinCaseman.Web.Services
+
+<nav class="pager" aria-label="Pagination">
+    <button class="pager-step" disabled="@(Page <= 1)" @onclick="() => GoTo(Page - 1)">Previous</button>
+
+    <ol>
+        @foreach (var item in PageWindow.Build(Page, TotalPages))
+        {
+            @if (item is int number)
+            {
+                <li>
+                    <button class="pager-page"
+                            aria-current="@(number == Page ? "page" : null)"
+                            aria-label="Page @number"
+                            @onclick="() => GoTo(number)">@number</button>
+                </li>
+            }
+            else
+            {
+                <li class="pager-gap" aria-hidden="true">&hellip;</li>
+            }
+        }
+    </ol>
+
+    <button class="pager-step" disabled="@(Page >= TotalPages)" @onclick="() => GoTo(Page + 1)">Next</button>
+
+    <span class="pager-summary">@TotalCount notices &middot; page @Page of @TotalPages</span>
+</nav>
+
+@code {
+    [Parameter, EditorRequired]
+    public int Page { get; set; }
+
+    [Parameter, EditorRequired]
+    public int TotalPages { get; set; }
+
+    [Parameter, EditorRequired]
+    public int TotalCount { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<int> OnPageChanged { get; set; }
+
+    private Task GoTo(int target) =>
+        target == Page || target < 1 || target > TotalPages
+            ? Task.CompletedTask
+            : OnPageChanged.InvokeAsync(target);
+}

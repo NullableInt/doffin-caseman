@@ -62,11 +62,7 @@ else
         </tbody>
     </table>
 
-    <nav class="pager" aria-label="Pagination">
-        <button disabled="@(result!.Page <= 1)" @onclick="() => GoToAsync(result.Page - 1)">Previous</button>
-        <span>Page @result.Page of @result.TotalPages (@result.TotalCount notices)</span>
-        <button disabled="@(result.Page >= result.TotalPages)" @onclick="() => GoToAsync(result.Page + 1)">Next</button>
-    </nav>
+    <Pager Page="result!.Page" TotalPages="result.TotalPages" TotalCount="result.TotalCount" OnPageChanged="GoToAsync" />
 }
 
 @code {

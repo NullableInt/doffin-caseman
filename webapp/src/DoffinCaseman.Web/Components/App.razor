@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Components.Web
+@inject IWebHostEnvironment Environment
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,12 +7,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Doffin Case Management</title>
     <base href="/" />
-    <link rel="stylesheet" href="css/site.css" />
+    <link rel="stylesheet" href="@Versioned("css/site.css")" />
     <HeadOutlet />
 </head>
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
-    <script src="js/theme.js" defer></script>
+    <script src="@Versioned("js/theme.js")" defer></script>
 </body>
 </html>
+
+@code {
+    // Static files are served without fingerprinting, so browsers keep stale
+    // copies across deploys. Appending the file's timestamp busts that cache
+    // whenever the file changes.
+    private string Versioned(string path)
+    {
+        var file = Environment.WebRootFileProvider.GetFileInfo(path);
+        return file.Exists ? $"{path}?v={file.LastModified.ToUnixTimeSeconds()}" : path;
+    }
+}
