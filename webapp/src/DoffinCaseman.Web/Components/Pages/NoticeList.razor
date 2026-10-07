@@ -15,6 +15,10 @@
     <input placeholder="CPV code" @bind="cpvCode" @bind:event="oninput" />
     <input placeholder="Region" @bind="region" @bind:event="oninput" />
     <button @onclick="ApplyFilters">Filter</button>
+    <label class="toggle">
+        <input type="checkbox" checked="@includeArchived" @onchange="OnIncludeArchivedChanged" />
+        Show archived
+    </label>
 </div>
 
 @if (notices is null)
@@ -73,6 +77,7 @@ else
     private string searchText = "";
     private string cpvCode = "";
     private string region = "";
+    private bool includeArchived;
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,7 +89,8 @@ else
         var filter = new NoticeFilter(
             CpvCode: string.IsNullOrWhiteSpace(cpvCode) ? null : cpvCode,
             Region: string.IsNullOrWhiteSpace(region) ? null : region,
-            SearchText: string.IsNullOrWhiteSpace(searchText) ? null : searchText);
+            SearchText: string.IsNullOrWhiteSpace(searchText) ? null : searchText,
+            IncludeArchived: includeArchived);
 
         result = await NoticeService.SearchAsync(filter, targetPage, PageSize);
         page = result.Page;
@@ -93,6 +99,12 @@ else
     private async Task GoToAsync(int targetPage) => await LoadAsync(targetPage);
 
     private async Task ApplyFilters() => await LoadAsync();
+
+    private async Task OnIncludeArchivedChanged(ChangeEventArgs e)
+    {
+        includeArchived = e.Value is true;
+        await LoadAsync();
+    }
 
     private async Task ApplyFiltersOnEnter(KeyboardEventArgs e)
     {

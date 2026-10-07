@@ -1,3 +1,4 @@
+using DoffinCaseman.Web.Data.Entities;
 using DoffinCaseman.Web.Services;
 using Npgsql;
 using Xunit;
@@ -133,5 +134,70 @@ public class NoticeSearchPagingTests(PostgresFixture fixture)
         Assert.Equal(0, result.TotalCount);
         Assert.Equal(1, result.TotalPages);
         Assert.Equal(1, result.Page);
+    }
+
+    // Seeds three notices under one tag: -000 has no case, -001 an active
+    // case, -002 an archived case.
+    private async Task<string> SeedNoticesWithArchivedCaseAsync()
+    {
+        var tag = await SeedNoticesAsync(3);
+
+        await using var conn = new NpgsqlConnection(fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(
+            """
+            INSERT INTO cases (notice_id, status) VALUES
+                (@active, 'bidding'),
+                (@archived, 'archived')
+            """, conn);
+        cmd.Parameters.AddWithValue("active", $"{tag}-001");
+        cmd.Parameters.AddWithValue("archived", $"{tag}-002");
+        await cmd.ExecuteNonQueryAsync();
+        return tag;
+    }
+
+    [Fact]
+    public async Task SearchAsync_HidesArchivedCasesByDefault()
+    {
+        var tag = await SeedNoticesWithArchivedCaseAsync();
+
+        var result = await CreateService().SearchAsync(new NoticeFilter(SearchText: tag));
+
+        Assert.Equal(2, result.TotalCount);
+        Assert.DoesNotContain(result.Items, n => n.NoticeId == $"{tag}-002");
+        // Notices with no case at all must not be dropped by the archived filter.
+        Assert.Contains(result.Items, n => n.NoticeId == $"{tag}-000");
+    }
+
+    [Fact]
+    public async Task SearchAsync_IncludesArchivedCasesWhenRequested()
+    {
+        var tag = await SeedNoticesWithArchivedCaseAsync();
+
+        var result = await CreateService().SearchAsync(new NoticeFilter(SearchText: tag, IncludeArchived: true));
+
+        Assert.Equal(3, result.TotalCount);
+        Assert.Contains(result.Items, n => n.NoticeId == $"{tag}-002");
+    }
+
+    [Fact]
+    public async Task SearchAsync_ExplicitArchivedStatusFilterShowsArchived()
+    {
+        var tag = await SeedNoticesWithArchivedCaseAsync();
+
+        var result = await CreateService().SearchAsync(new NoticeFilter(SearchText: tag, CaseStatus: CaseStatus.Archived));
+
+        Assert.Equal([$"{tag}-002"], result.Items.Select(n => n.NoticeId));
+    }
+
+    [Fact]
+    public async Task SearchAsync_PagingTotalsExcludeHiddenArchivedCases()
+    {
+        var tag = await SeedNoticesWithArchivedCaseAsync();
+
+        var result = await CreateService().SearchAsync(new NoticeFilter(SearchText: tag), page: 1, pageSize: 1);
+
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(2, result.TotalPages);
     }
 }

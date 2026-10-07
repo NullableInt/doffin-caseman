@@ -10,7 +10,8 @@ public record NoticeFilter(
     CaseStatus? CaseStatus = null,
     string? SearchText = null,
     DateTimeOffset? PublishedAfter = null,
-    DateTimeOffset? DeadlineBefore = null);
+    DateTimeOffset? DeadlineBefore = null,
+    bool IncludeArchived = false);
 
 public record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount)
 {
@@ -38,6 +39,11 @@ public class NoticeService(IDbContextFactory<AppDbContext> dbFactory)
 
         if (filter.CaseStatus is not null)
             query = query.Where(n => n.Case != null && n.Case.Status == filter.CaseStatus);
+
+        // Archived cases are hidden unless asked for, or unless the caller is
+        // explicitly filtering on the Archived status.
+        if (!filter.IncludeArchived && filter.CaseStatus != CaseStatus.Archived)
+            query = query.Where(n => n.Case == null || n.Case.Status != CaseStatus.Archived);
 
         if (!string.IsNullOrWhiteSpace(filter.SearchText))
             query = query.Where(n => EF.Functions.ILike(n.Title, $"%{filter.SearchText}%"));
