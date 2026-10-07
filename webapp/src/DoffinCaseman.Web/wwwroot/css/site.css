@@ -312,6 +312,14 @@ button:disabled {
     margin: 0 auto;
 }
 
+.pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
 .filter-bar {
     display: flex;
     flex-wrap: wrap;

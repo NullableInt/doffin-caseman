@@ -61,10 +61,19 @@ else
             }
         </tbody>
     </table>
+
+    <nav class="pager" aria-label="Pagination">
+        <button disabled="@(result!.Page <= 1)" @onclick="() => GoToAsync(result.Page - 1)">Previous</button>
+        <span>Page @result.Page of @result.TotalPages (@result.TotalCount notices)</span>
+        <button disabled="@(result.Page >= result.TotalPages)" @onclick="() => GoToAsync(result.Page + 1)">Next</button>
+    </nav>
 }
 
 @code {
-    private List<Notice>? notices;
+    private const int PageSize = 25;
+    private PagedResult<Notice>? result;
+    private IReadOnlyList<Notice>? notices => result?.Items;
+    private int page = 1;
     private string searchText = "";
     private string cpvCode = "";
     private string region = "";
@@ -74,15 +83,18 @@ else
         await LoadAsync();
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(int targetPage = 1)
     {
         var filter = new NoticeFilter(
             CpvCode: string.IsNullOrWhiteSpace(cpvCode) ? null : cpvCode,
             Region: string.IsNullOrWhiteSpace(region) ? null : region,
             SearchText: string.IsNullOrWhiteSpace(searchText) ? null : searchText);
 
-        notices = await NoticeService.SearchAsync(filter);
+        result = await NoticeService.SearchAsync(filter, targetPage, PageSize);
+        page = result.Page;
     }
+
+    private async Task GoToAsync(int targetPage) => await LoadAsync(targetPage);
 
     private async Task ApplyFilters() => await LoadAsync();
 

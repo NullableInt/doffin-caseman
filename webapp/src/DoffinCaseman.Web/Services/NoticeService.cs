@@ -12,12 +12,20 @@ public record NoticeFilter(
     DateTimeOffset? PublishedAfter = null,
     DateTimeOffset? DeadlineBefore = null);
 
+public record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount)
+{
+    public int TotalPages => Math.Max(1, (int)Math.Ceiling(TotalCount / (double)PageSize));
+}
+
 // Read-only: the webapp never writes to "notices" (the Go crawler owns that
 // table entirely). See AppDbContext remarks.
 public class NoticeService(IDbContextFactory<AppDbContext> dbFactory)
 {
-    public async Task<List<Notice>> SearchAsync(NoticeFilter filter, int page = 1, int pageSize = 25)
+    public async Task<PagedResult<Notice>> SearchAsync(NoticeFilter filter, int page = 1, int pageSize = 25)
     {
+        pageSize = Math.Clamp(pageSize, 1, 200);
+        page = Math.Max(1, page);
+
         await using var db = await dbFactory.CreateDbContextAsync();
 
         var query = db.Notices.AsNoTracking().Include(n => n.Case).AsQueryable();
@@ -40,11 +48,20 @@ public class NoticeService(IDbContextFactory<AppDbContext> dbFactory)
         if (filter.DeadlineBefore is not null)
             query = query.Where(n => n.Deadline <= filter.DeadlineBefore);
 
-        return await query
+        var total = await query.CountAsync();
+
+        // Clamp to the last page so a shrinking result set never lands on an empty page.
+        var lastPage = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        page = Math.Min(page, lastPage);
+
+        var items = await query
             .OrderByDescending(n => n.PublishedDate)
+            .ThenBy(n => n.NoticeId)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
+        return new PagedResult<Notice>(items, page, pageSize, total);
     }
 
     public async Task<Notice?> GetByNoticeIdAsync(string noticeId)
