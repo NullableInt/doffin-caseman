@@ -7,7 +7,7 @@ RUN dotnet restore src/DoffinCaseman.Web/DoffinCaseman.Web.csproj
 COPY . .
 RUN dotnet publish src/DoffinCaseman.Web/DoffinCaseman.Web.csproj -c Release -o /out
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+FROM mcr.microsoft.com/dotnet/aspnet:11.0
 WORKDIR /app
 COPY --from=build /out .
 EXPOSE 8080
